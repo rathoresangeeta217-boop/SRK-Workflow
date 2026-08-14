@@ -10,6 +10,7 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
   const [itemResponses, setItemResponses] = useState<Record<number, { vendorPrice: string, vendorRemarks: string, imageFile: File | null, imagePreview: string | null }>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -191,8 +192,17 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-900 px-6 py-8 text-center text-white border-b-4 border-amber-500">
             <div className="flex flex-col items-center justify-center mb-4">
-              <div className="h-16 bg-white rounded-xl flex items-center justify-center shadow-lg mb-3 p-2">
-                <img src="/srk-logo.png" alt="SRK Modular Logo" className="h-full object-contain" />
+              <div className="h-16 bg-white rounded-xl flex items-center justify-center shadow-lg mb-3 p-2 min-w-[64px]">
+                {!logoError ? (
+                  <img 
+                    src="/srk-logo.png" 
+                    alt="SRK Modular Logo" 
+                    className="h-full object-contain" 
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <span className="font-bold text-xl text-slate-800">SRK</span>
+                )}
               </div>
               <h1 className="text-2xl font-bold tracking-tight">SRK MODULAR</h1>
               <p className="text-slate-300 text-xs tracking-widest uppercase mt-1">FURNITURE.CO</p>

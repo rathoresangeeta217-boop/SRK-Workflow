@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ShoppingBag, ShoppingCart, Users, AlertCircle, Plus, Truck, Filter, MoreHorizontal, FileText, Building2, Trash2, Search, MessageCircle, X, Copy } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Users, AlertCircle, Plus, Truck, Filter, MoreHorizontal, FileText, Building2, Trash2, Search, MessageCircle, X, Copy, Mail } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { NewProductModal } from '../components/NewProductModal';
@@ -13,6 +13,7 @@ import { saveProductFile, getProductFile } from '../lib/fileStorage';
 import { subscribeToPurchases, savePurchase, deletePurchase, Purchase } from '../lib/purchases';
 import { subscribeToProducts, saveProduct, deleteProduct, Product } from '../lib/products';
 import { subscribeToVendors, saveVendor, deleteVendor, Vendor } from '../lib/vendors';
+import { getPublicUrl } from '../lib/utils';
 import { subscribeToQuotes, QuoteRequest } from '../lib/quotes';
 
 const ProductImage = ({ productId, productName, className }: { productId?: string, productName: string, className?: string }) => {
@@ -686,19 +687,64 @@ export function PurchaseTab() {
                               {quote.status}
                             </Badge>
                             {quote.status === 'pending' && (
-                              <button
-                                onClick={() => {
-                                  const baseUrl = window.location.origin + window.location.pathname;
-                                  const link = `${baseUrl}?quoteId=${quote.id}`;
-                                  navigator.clipboard.writeText(link);
-                                  alert('Link copied to clipboard!');
-                                }}
-                                className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-1 rounded"
-                                title="Copy Quote Link"
-                              >
-                                <Copy className="w-3 h-3" />
-                                Copy Link
-                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    const baseUrl = getPublicUrl();
+                                    const link = `${baseUrl}?quoteId=${quote.id}`;
+
+                                    const itemsList = quote.items && quote.items.length > 0 ? quote.items : [quote];
+                                    const productNames = itemsList.map((i: any) => i.productName).join(', ');
+                                    const subject = `Quote Request from SRK Modular: ${productNames}`;
+                                    const text = `Hi ${vendor?.contactPerson || vendor?.name},
+
+Please review our requirement for ${productNames} and provide a quote using this link:
+
+${link}
+
+Thank you,
+SRK Modular Purchasing`;
+                                    
+                                    const mailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(vendor?.email || '')}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+                                    window.open(mailUrl, '_blank');
+                                  }}
+                                  className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded"
+                                  title="Email Quote Link"
+                                >
+                                  <Mail className="w-3 h-3" />
+                                  Email Link
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    let phoneNum = vendor?.phone?.replace(/[^0-9]/g, '') || '';
+                                    if (phoneNum.length >= 10) {
+                                      phoneNum = '91' + phoneNum.slice(-10);
+                                    }
+                                    if (!phoneNum) {
+                                      alert('Vendor does not have a valid phone number.');
+                                      return;
+                                    }
+
+                                    const baseUrl = getPublicUrl();
+                                    const link = `${baseUrl}?quoteId=${quote.id}`;
+
+                                    const itemsList = quote.items && quote.items.length > 0 ? quote.items : [quote];
+                                    const productNames = itemsList.map((i: any) => i.productName).join(', ');
+                                    const text = `Hi ${vendor?.contactPerson || vendor?.name},
+
+Please review our requirement for ${productNames} and provide a quote using this link:
+${link}`;
+                                    
+                                    const whatsappUrl = `https://web.whatsapp.com/send/?phone=${phoneNum}&text=${encodeURIComponent(text)}`;
+                                    window.open(whatsappUrl, 'whatsapp_web_tab');
+                                  }}
+                                  className="flex items-center gap-1.5 text-xs font-semibold text-[#25D366] hover:text-[#128C7E] bg-green-50 px-2 py-1 rounded"
+                                  title="WhatsApp Quote Link"
+                                >
+                                  <MessageCircle className="w-3 h-3" />
+                                  WhatsApp
+                                </button>
+                              </div>
                             )}
                           </div>
                         </td>

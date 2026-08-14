@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Send, MessageCircle, Copy } from 'lucide-react';
+import { X, Send, MessageCircle, Copy, Mail } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Product } from '../lib/products';
 import { Vendor } from '../lib/vendors';
 import { saveQuoteRequest } from '../lib/quotes';
+import { getPublicUrl } from '../lib/utils';
 
 interface RequestQuoteModalProps {
   isOpen: boolean;
@@ -162,7 +163,11 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
           vendorId,
           items: processedItems
         });
-        quotes.push({ quoteId, vendorId });
+        
+        const baseUrl = getPublicUrl();
+        const link = `${baseUrl}?quoteId=${quoteId}`;
+
+        quotes.push({ quoteId, vendorId, shortLink: link });
       }
       setCreatedQuotes(quotes);
       setStep(3);
@@ -198,13 +203,14 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
     onClose();
   };
 
-  const getWhatsAppLink = (vendorId: string, quoteId: string) => {
+  const getEmailLink = (vendorId: string, quoteId: string, shortLink?: string) => {
     const vendor = vendors.find(v => v.id === vendorId);
-    const baseUrl = window.location.origin + window.location.pathname;
-    const link = `${baseUrl}?quoteId=${quoteId}`;
+    const baseUrl = getPublicUrl();
+    const link = shortLink || `${baseUrl}?quoteId=${quoteId}`;
     const productNames = items.map(i => i.productName).join(', ');
-    const text = `Hi ${vendor?.contactPerson || vendor?.name},\n\nPlease review our requirement for ${productNames} and provide a quote using this link:\n${link}`;
-    return `https://wa.me/${vendor?.phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`;
+    const subject = `Quote Request from SRK Modular: ${productNames}`;
+    const text = `Hi ${vendor?.contactPerson || vendor?.name},\n\nPlease review our requirement for ${productNames} and provide a quote using this link:\n\n${link}\n\nThank you,\nSRK Modular Purchasing`;
+    return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(vendor?.email || '')}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
   };
 
   return (
@@ -417,10 +423,10 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                     <Send className="w-8 h-8" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-800">Quotes Generated!</h3>
-                  <p className="text-sm text-slate-500">You can now send the fillable quote link to the vendors via WhatsApp.</p>
+                  <p className="text-sm text-slate-500">You can now send the fillable quote link to the vendors via Email or WhatsApp.</p>
                   
                   <div className="space-y-3 mt-6 text-left">
-                    {createdQuotes.map(({ quoteId, vendorId }) => {
+                    {createdQuotes.map(({ quoteId, vendorId, shortLink }) => {
                       const v = vendors.find(vend => vend.id === vendorId);
                       return (
                         <div key={quoteId} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
@@ -431,8 +437,8 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
-                                const baseUrl = window.location.origin + window.location.pathname;
-                                const link = `${baseUrl}?quoteId=${quoteId}`;
+                                const baseUrl = getPublicUrl();
+                                const link = shortLink || `${baseUrl}?quoteId=${quoteId}`;
                                 navigator.clipboard.writeText(link);
                                 alert('Link copied to clipboard!');
                               }}
@@ -442,14 +448,40 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                               Copy
                             </button>
                             <a 
-                              href={getWhatsAppLink(vendorId, quoteId)}
+                              href={getEmailLink(vendorId, quoteId, shortLink)}
                               target="_blank"
                               rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors"
+                            >
+                              <Mail className="w-4 h-4" />
+                              Email
+                            </a>
+                            <button 
+                              onClick={() => {
+                                const vendor = vendors.find(v => v.id === vendorId);
+                                let phoneNum = vendor?.phone?.replace(/[^0-9]/g, '') || '';
+                                if (phoneNum.length >= 10) {
+                                  phoneNum = '91' + phoneNum.slice(-10);
+                                }
+                                
+                                if (!phoneNum) {
+                                  alert('Vendor does not have a valid phone number.');
+                                  return;
+                                }
+
+                                const baseUrl = getPublicUrl();
+                                const link = shortLink || `${baseUrl}?quoteId=${quoteId}`;
+                                const productNames = items.map(i => i.productName).join(', ');
+                                const text = `Hi ${vendor?.contactPerson || vendor?.name},\n\nPlease review our requirement for ${productNames} and provide a quote using this link:\n${link}`;
+                                
+                                const whatsappUrl = `https://web.whatsapp.com/send/?phone=${phoneNum}&text=${encodeURIComponent(text)}`;
+                                window.open(whatsappUrl, 'whatsapp_web_tab');
+                              }}
                               className="flex items-center gap-2 px-3 py-1.5 bg-[#25D366] text-white rounded-lg text-sm font-semibold hover:bg-[#128C7E] transition-colors"
                             >
                               <MessageCircle className="w-4 h-4" />
-                              Send Link
-                            </a>
+                              WhatsApp
+                            </button>
                           </div>
                         </div>
                       );
