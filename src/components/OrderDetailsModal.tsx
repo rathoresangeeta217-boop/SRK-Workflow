@@ -1,0 +1,257 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X, FileText, Download, User, Building, Phone, Mail, MapPin, Hash, Paperclip, Loader2, Trash2 } from 'lucide-react';
+import { Badge } from './Badge';
+import { getOrderFiles } from '../lib/fileStorage';
+
+interface OrderDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  order: any | null;
+  onDelete?: () => void;
+}
+
+export function OrderDetailsModal({ isOpen, onClose, order, onDelete }: OrderDetailsModalProps) {
+  const [files, setFiles] = useState<any>({});
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsConfirmingDelete(false);
+    }
+    if (isOpen && order) {
+      setIsLoadingFiles(true);
+      getOrderFiles(order.id)
+        .then(data => setFiles(data || {}))
+        .catch(console.error)
+        .finally(() => setIsLoadingFiles(false));
+    }
+  }, [isOpen, order]);
+
+  if (!order) return null;
+
+  const handleDownload = (fileName: string, fileData?: string) => {
+    if (fileData) {
+      const link = document.createElement('a');
+      link.href = fileData;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      alert(`Downloading ${fileName}... (File content not available)`);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            onClick={onClose}
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+            animate={{ opacity: 1, scale: 1, y: 0 }} 
+            exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+            className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-full"
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg">Order Details</h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs font-medium text-slate-500">{order.id}</p>
+                    <Badge variant={
+                      order.status === 'Completed' ? 'success' : 
+                      order.status === 'Processing' ? 'info' : 
+                      order.status === 'New' ? 'purple' : 
+                      order.status === 'Cancelled' ? 'error' : 'warning'
+                    }>
+                      {order.status}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={onClose}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto custom-scrollbar space-y-8">
+              {/* Customer Info */}
+              <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+                <h4 className="text-sm font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">Customer Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-start gap-3">
+                    <User className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Customer Name</p>
+                      <p className="text-sm font-semibold text-slate-800">{order.details?.customerName || order.customer || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Building className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Company Name</p>
+                      <p className="text-sm font-semibold text-slate-800">{order.details?.companyName || order.customer || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Phone className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Mobile Number</p>
+                      <p className="text-sm font-semibold text-slate-800">{order.details?.mobileNumber || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Email</p>
+                      <p className="text-sm font-semibold text-slate-800">{order.details?.email || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 md:col-span-2">
+                    <Hash className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">GST Number</p>
+                      <p className="text-sm font-semibold text-slate-800">{order.details?.gst || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 md:col-span-2">
+                    <MapPin className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Address</p>
+                      <p className="text-sm font-semibold text-slate-800">{order.details?.address || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attachments */}
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Attachments</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Quotation */}
+                  <div className="border border-slate-200 rounded-xl p-4 flex flex-col justify-between bg-white hover:border-indigo-300 transition-colors">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0">
+                        {isLoadingFiles ? <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" /> : <FileText className="w-4 h-4 text-indigo-600" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Quotation</p>
+                        <p className="text-sm font-medium text-slate-600 truncate">
+                          {order.details?.quotationFileName || 'No quotation attached'}
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleDownload(order.details?.quotationFileName || 'Quotation.pdf', files.quotationFileData)}
+                      disabled={!order.details?.quotationFileName || isLoadingFiles || !files.quotationFileData}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </button>
+                  </div>
+
+                  {/* PO */}
+                  <div className="border border-slate-200 rounded-xl p-4 flex flex-col justify-between bg-white hover:border-emerald-300 transition-colors">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
+                        {isLoadingFiles ? <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" /> : <Paperclip className="w-4 h-4 text-emerald-600" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Purchase Order</p>
+                        <p className="text-sm font-medium text-slate-600 truncate">
+                          {order.details?.poFileName || 'No PO attached'}
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleDownload(order.details?.poFileName || 'PO.pdf', files.poFileData)}
+                      disabled={!order.details?.poFileName || isLoadingFiles || !files.poFileData}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-semibold hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </button>
+                  </div>
+
+                  {/* Drawing */}
+                  <div className="border border-slate-200 rounded-xl p-4 flex flex-col justify-between bg-white hover:border-amber-300 transition-colors">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center shrink-0">
+                        {isLoadingFiles ? <Loader2 className="w-4 h-4 text-amber-600 animate-spin" /> : <FileText className="w-4 h-4 text-amber-600" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Drawing</p>
+                        <p className="text-sm font-medium text-slate-600 truncate">
+                          {order.details?.drawingFileName || 'No drawing attached'}
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleDownload(order.details?.drawingFileName || 'Drawing.pdf', files.drawingFileData)}
+                      disabled={!order.details?.drawingFileName || isLoadingFiles || !files.drawingFileData}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-amber-50 text-amber-700 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              {onDelete && (
+                <div className="border-t border-slate-100 pt-6 flex justify-end items-center gap-3">
+                  {isConfirmingDelete ? (
+                    <>
+                      <span className="text-sm text-slate-600 font-medium mr-2">Are you sure?</span>
+                      <button
+                        onClick={() => setIsConfirmingDelete(false)}
+                        className="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-semibold transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsConfirmingDelete(false);
+                          onDelete();
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Yes, Delete
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setIsConfirmingDelete(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete Order
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}

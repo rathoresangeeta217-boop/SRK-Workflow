@@ -1,0 +1,86 @@
+import { collection, addDoc, getDocs, orderBy, query, serverTimestamp, doc, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { db, auth } from './firebase';
+
+export interface PurchaseDetails {
+  productName?: string;
+  specification?: string;
+  price?: string;
+  vendorName?: string;
+  details?: string;
+  productImageName?: string;
+  productImageData?: string;
+  poNumber?: string;
+  productId?: string;
+  quantity?: string;
+  eta?: string;
+}
+
+export interface Purchase {
+  id: string;
+  docId?: string;
+  productName: string;
+  vendorName: string;
+  price: string;
+  status: string;
+  createdAt: any;
+  details?: PurchaseDetails;
+}
+
+const getPurchasesCollection = () => collection(db, 'purchases');
+
+export const savePurchase = async (purchaseData: Partial<Purchase>) => {
+  const cleanData: any = { ...purchaseData };
+  
+  if (cleanData.details) {
+    cleanData.details = Object.fromEntries(
+      Object.entries(cleanData.details).filter(([_, v]) => v !== undefined)
+    );
+  }
+  
+  const finalData = Object.fromEntries(
+    Object.entries(cleanData).filter(([_, v]) => v !== undefined)
+  );
+
+  const docRef = await addDoc(getPurchasesCollection(), {
+    ...finalData,
+    createdAt: serverTimestamp()
+  });
+  return docRef.id;
+};
+
+export const deletePurchase = async (docId: string) => {
+  await deleteDoc(doc(db, 'purchases', docId));
+};
+
+export const subscribeToPurchases = (callback: (purchases: Purchase[]) => void) => {
+  let unsubscribeSnapshot: () => void;
+  
+  const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    if (user) {
+      const q = query(getPurchasesCollection(), orderBy('createdAt', 'desc'));
+      unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+        const purchases = snapshot.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.data().id || doc.id,
+          docId: doc.id
+        })) as Purchase[];
+        callback(purchases);
+      }, (error) => {
+        console.error("Error fetching purchases:", error);
+      });
+    } else {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+      callback([]);
+    }
+  });
+
+  return () => {
+    unsubscribeAuth();
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
+    }
+  };
+};
