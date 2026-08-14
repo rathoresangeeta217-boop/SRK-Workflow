@@ -2,24 +2,44 @@ import { collection, addDoc, getDocs, orderBy, query, serverTimestamp, doc, onSn
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from './firebase';
 
-export interface QuoteRequest {
-  id: string;
-  docId?: string;
-  category: string;
+export interface QuoteItem {
+  id?: string;
   productId?: string;
   productName: string;
   specification: string;
   quantity: string;
   specialRemarks: string;
+  imageUrl?: string;
+  expectedDeliveryDate?: string;
+  quoteDeadline?: string;
+  vendorPrice?: string;
+  vendorRemarks?: string;
+  vendorImageUrl?: string;
+}
+
+export interface QuoteRequest {
+  id: string;
+  docId?: string;
+  category: string;
   vendorId: string;
   status: 'pending' | 'submitted';
+  createdAt: any;
+  updatedAt?: any;
+  
+  // New array-based items
+  items?: QuoteItem[];
+  
+  // Legacy fields for backward compatibility
+  productId?: string;
+  productName?: string;
+  specification?: string;
+  quantity?: string;
+  specialRemarks?: string;
   vendorPrice?: string;
   vendorRemarks?: string;
   vendorImageUrl?: string;
   expectedDeliveryDate?: string;
   quoteDeadline?: string;
-  createdAt: any;
-  updatedAt?: any;
 }
 
 const getQuotesCollection = () => collection(db, 'quotes');

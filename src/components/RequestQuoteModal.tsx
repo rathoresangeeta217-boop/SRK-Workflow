@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Send, MessageCircle } from 'lucide-react';
+import { X, Send, MessageCircle, Copy } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Product } from '../lib/products';
 import { Vendor } from '../lib/vendors';
@@ -16,13 +16,19 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState(1);
   const [category, setCategory] = useState('');
-  const [selectedProductId, setSelectedProductId] = useState('');
-  const [productName, setProductName] = useState('');
-  const [specification, setSpecification] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [specialRemarks, setSpecialRemarks] = useState('');
-  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
-  const [quoteDeadline, setQuoteDeadline] = useState('');
+  
+  const [items, setItems] = useState<any[]>([{
+    id: Math.random().toString(),
+    productId: '',
+    productName: '',
+    specification: '',
+    quantity: '',
+    specialRemarks: '',
+    expectedDeliveryDate: '',
+    quoteDeadline: '',
+    imageFile: null,
+    imagePreview: ''
+  }]);
   
   // Available categories from vendors
   const categories = Array.from(new Set(vendors.map(v => v.category).filter(Boolean))) as string[];
@@ -32,22 +38,97 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
   const [createdQuotes, setCreatedQuotes] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (selectedProductId) {
-      const p = products.find(p => p.id === selectedProductId || p.docId === selectedProductId);
-      if (p) {
-        setProductName(p.name);
-        setSpecification(p.specification || '');
+  const handleItemChange = (id: string, field: string, value: any) => {
+    setItems(items.map(item => {
+      if (item.id === id) {
+        const updated = { ...item, [field]: value };
+        // Auto-fill from selected product
+        if (field === 'productId' && value) {
+          const p = products.find(p => p.id === value || p.docId === value);
+          if (p) {
+            updated.productName = p.name;
+            updated.specification = p.specification || '';
+          }
+        }
+        return updated;
       }
-    } else {
-      setProductName('');
-      setSpecification('');
+      return item;
+    }));
+  };
+
+  const handleImageChange = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      handleItemChange(id, 'imageFile', file);
+      handleItemChange(id, 'imagePreview', URL.createObjectURL(file));
     }
-  }, [selectedProductId, products]);
+  };
+
+  const addItem = () => {
+    setItems([...items, {
+      id: Math.random().toString(),
+      productId: '',
+      productName: '',
+      specification: '',
+      quantity: '',
+      specialRemarks: '',
+      expectedDeliveryDate: '',
+      quoteDeadline: '',
+      imageFile: null,
+      imagePreview: ''
+    }]);
+  };
+
+  const removeItem = (id: string) => {
+    if (items.length > 1) {
+      setItems(items.filter(item => item.id !== id));
+    }
+  };
 
   const handleSubmitDetails = (e: React.FormEvent) => {
     e.preventDefault();
+    if (items.some(item => !item.productName || !item.quantity)) {
+      alert("Please fill in the product name and quantity for all items.");
+      return;
+    }
     setStep(2);
+  };
+
+  const resizeImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+  
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   const handleCreateQuotes = async () => {
@@ -55,18 +136,31 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
     setIsProcessing(true);
     
     try {
+      // Process images first
+      const processedItems = [];
+      for (const item of items) {
+        let imageUrl = '';
+        if (item.imageFile) {
+          imageUrl = await resizeImage(item.imageFile);
+        }
+        processedItems.push({
+          productId: item.productId,
+          productName: item.productName,
+          specification: item.specification,
+          quantity: item.quantity,
+          specialRemarks: item.specialRemarks,
+          expectedDeliveryDate: item.expectedDeliveryDate,
+          quoteDeadline: item.quoteDeadline,
+          ...(imageUrl ? { imageUrl } : {})
+        });
+      }
+
       const quotes = [];
       for (const vendorId of selectedVendorIds) {
         const quoteId = await saveQuoteRequest({
           category,
-          productId: selectedProductId,
-          productName,
-          specification,
-          quantity,
-          specialRemarks,
-          expectedDeliveryDate,
-          quoteDeadline,
-          vendorId
+          vendorId,
+          items: processedItems
         });
         quotes.push({ quoteId, vendorId });
       }
@@ -83,13 +177,18 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
   const reset = () => {
     setStep(1);
     setCategory('');
-    setSelectedProductId('');
-    setProductName('');
-    setSpecification('');
-    setQuantity('');
-    setSpecialRemarks('');
-    setExpectedDeliveryDate('');
-    setQuoteDeadline('');
+    setItems([{
+      id: Math.random().toString(),
+      productId: '',
+      productName: '',
+      specification: '',
+      quantity: '',
+      specialRemarks: '',
+      expectedDeliveryDate: '',
+      quoteDeadline: '',
+      imageFile: null,
+      imagePreview: ''
+    }]);
     setSelectedVendorIds([]);
     setCreatedQuotes([]);
   };
@@ -103,7 +202,8 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
     const vendor = vendors.find(v => v.id === vendorId);
     const baseUrl = window.location.origin + window.location.pathname;
     const link = `${baseUrl}?quoteId=${quoteId}`;
-    const text = `Hi ${vendor?.contactPerson || vendor?.name},\n\nPlease review our requirement for ${productName} and provide a quote using this link:\n${link}`;
+    const productNames = items.map(i => i.productName).join(', ');
+    const text = `Hi ${vendor?.contactPerson || vendor?.name},\n\nPlease review our requirement for ${productNames} and provide a quote using this link:\n${link}`;
     return `https://wa.me/${vendor?.phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`;
   };
 
@@ -136,7 +236,7 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
             
             <div className="p-6 overflow-y-auto custom-scrollbar">
               {step === 1 && (
-                <form id="quote-form" onSubmit={handleSubmitDetails} className="space-y-4">
+                <form id="quote-form" onSubmit={handleSubmitDetails} className="space-y-6">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 uppercase">Vendor Category</label>
                     <select 
@@ -150,82 +250,134 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                     </select>
                   </div>
                   
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 uppercase">Select Product (Optional)</label>
-                    <select 
-                      value={selectedProductId}
-                      onChange={(e) => setSelectedProductId(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                    >
-                      <option value="">-- Manual Entry --</option>
-                      {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 uppercase">Product Name</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={productName}
-                        onChange={e => setProductName(e.target.value)}
-                        disabled={!!selectedProductId}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm disabled:bg-slate-100"
-                      />
+                  <div className="space-y-6 mt-4">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                      <h4 className="font-bold text-slate-800 text-sm uppercase">Products</h4>
+                      <button 
+                        type="button" 
+                        onClick={addItem}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-1 rounded"
+                      >
+                        + Add Another
+                      </button>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 uppercase">Quantity Required</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={quantity}
-                        onChange={e => setQuantity(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                      />
-                    </div>
-                  </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 uppercase">Specification</label>
-                    <input 
-                      type="text"
-                      value={specification}
-                      onChange={e => setSpecification(e.target.value)}
-                      disabled={!!selectedProductId}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm disabled:bg-slate-100"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 uppercase">Expected Delivery (Optional)</label>
-                      <input 
-                        type="date"
-                        value={expectedDeliveryDate}
-                        onChange={e => setExpectedDeliveryDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 uppercase">Quote Deadline (Optional)</label>
-                      <input 
-                        type="date"
-                        value={quoteDeadline}
-                        onChange={e => setQuoteDeadline(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 uppercase">Special Remarks</label>
-                    <textarea 
-                      value={specialRemarks}
-                      onChange={e => setSpecialRemarks(e.target.value)}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                    />
+                    {items.map((item, index) => (
+                      <div key={item.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl relative space-y-4">
+                        {items.length > 1 && (
+                          <button 
+                            type="button" 
+                            onClick={() => removeItem(item.id)}
+                            className="absolute -top-2 -right-2 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-600 rounded-full p-1 border border-slate-200 shadow-sm"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 uppercase">Select Product (Optional)</label>
+                          <select 
+                            value={item.productId}
+                            onChange={(e) => handleItemChange(item.id, 'productId', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                          >
+                            <option value="">-- Manual Entry --</option>
+                            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700 uppercase">Product Name *</label>
+                            <input 
+                              type="text" 
+                              required
+                              value={item.productName}
+                              onChange={e => handleItemChange(item.id, 'productName', e.target.value)}
+                              disabled={!!item.productId}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm disabled:bg-slate-100"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700 uppercase">Quantity Required *</label>
+                            <input 
+                              type="text" 
+                              required
+                              value={item.quantity}
+                              onChange={e => handleItemChange(item.id, 'quantity', e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 uppercase">Specification</label>
+                          <input 
+                            type="text"
+                            value={item.specification}
+                            onChange={e => handleItemChange(item.id, 'specification', e.target.value)}
+                            disabled={!!item.productId}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm disabled:bg-slate-100"
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700 uppercase">Expected Delivery (Optional)</label>
+                            <input 
+                              type="date"
+                              value={item.expectedDeliveryDate}
+                              onChange={e => handleItemChange(item.id, 'expectedDeliveryDate', e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700 uppercase">Quote Deadline (Optional)</label>
+                            <input 
+                              type="date"
+                              value={item.quoteDeadline}
+                              onChange={e => handleItemChange(item.id, 'quoteDeadline', e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 uppercase">Special Remarks</label>
+                          <textarea 
+                            value={item.specialRemarks}
+                            onChange={e => handleItemChange(item.id, 'specialRemarks', e.target.value)}
+                            rows={2}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm custom-scrollbar resize-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 uppercase">Reference Image (Optional)</label>
+                          {item.imagePreview ? (
+                            <div className="relative w-full h-32 bg-white rounded-lg overflow-hidden border border-slate-300">
+                              <img src={item.imagePreview} alt="Preview" className="w-full h-full object-contain" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleItemChange(item.id, 'imageFile', null);
+                                  handleItemChange(item.id, 'imagePreview', '');
+                                }}
+                                className="absolute top-1 right-1 p-1 bg-white text-slate-600 rounded-full shadow hover:bg-rose-50 hover:text-rose-600"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="flex items-center justify-center w-full h-12 border border-slate-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-slate-50 transition-colors">
+                              <span className="text-xs text-slate-500 font-medium">Click to upload image</span>
+                              <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageChange(item.id, e)} />
+                            </label>
+                          )}
+                        </div>
+
+                      </div>
+                    ))}
                   </div>
                 </form>
               )}
@@ -276,15 +428,29 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                             <p className="font-semibold text-slate-800">{v?.name}</p>
                             <p className="text-xs text-slate-500">Quote ID: {quoteId}</p>
                           </div>
-                          <a 
-                            href={getWhatsAppLink(vendorId, quoteId)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-1.5 bg-[#25D366] text-white rounded-lg text-sm font-semibold hover:bg-[#128C7E] transition-colors"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                            Send Link
-                          </a>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const baseUrl = window.location.origin + window.location.pathname;
+                                const link = `${baseUrl}?quoteId=${quoteId}`;
+                                navigator.clipboard.writeText(link);
+                                alert('Link copied to clipboard!');
+                              }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors"
+                            >
+                              <Copy className="w-4 h-4" />
+                              Copy
+                            </button>
+                            <a 
+                              href={getWhatsAppLink(vendorId, quoteId)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-3 py-1.5 bg-[#25D366] text-white rounded-lg text-sm font-semibold hover:bg-[#128C7E] transition-colors"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                              Send Link
+                            </a>
+                          </div>
                         </div>
                       );
                     })}

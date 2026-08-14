@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ShoppingBag, ShoppingCart, Users, AlertCircle, Plus, Truck, Filter, MoreHorizontal, FileText, Building2, Trash2, Search, MessageCircle, X } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Users, AlertCircle, Plus, Truck, Filter, MoreHorizontal, FileText, Building2, Trash2, Search, MessageCircle, X, Copy } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { NewProductModal } from '../components/NewProductModal';
@@ -656,35 +656,61 @@ export function PurchaseTab() {
                         No quotes found. Click "Request Quote" to create one.
                       </td>
                     </tr>
-                  ) : quotes.map((quote, i) => {
+                  ) : quotes.flatMap((quote, i) => {
                     const vendor = vendors.find(v => v.id === quote.vendorId);
-                    return (
+                    const items = quote.items && quote.items.length > 0 ? quote.items : [quote as any];
+                    
+                    return items.map((item, itemIdx) => (
                       <motion.tr 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ delay: 0.1 + i * 0.05 }}
-                        key={quote.id} 
+                        transition={{ delay: 0.1 + (i + itemIdx * 0.1) * 0.05 }}
+                        key={`${quote.id}-${itemIdx}`} 
                         className="hover:bg-slate-50 transition-colors"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">{quote.productName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{vendor?.name || 'Unknown Vendor'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{quote.quantity}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{quote.quoteDeadline ? new Date(quote.quoteDeadline).toLocaleDateString() : '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{quote.expectedDeliveryDate ? new Date(quote.expectedDeliveryDate).toLocaleDateString() : '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant={quote.status === 'submitted' ? 'success' : 'warning'}>
-                            {quote.status}
-                          </Badge>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">
+                          <div className="flex items-center gap-2">
+                            {item.imageUrl && (
+                              <img src={item.imageUrl} alt="" className="w-8 h-8 rounded object-cover border border-slate-200" />
+                            )}
+                            {item.productName}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">{quote.vendorPrice ? `Rs. ${quote.vendorPrice}` : '-'}</td>
-                        <td className="px-6 py-4 text-sm text-slate-600 font-medium max-w-[200px] truncate">{quote.vendorRemarks || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{vendor?.name || 'Unknown Vendor'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{item.quantity}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{item.quoteDeadline ? new Date(item.quoteDeadline).toLocaleDateString() : '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{item.expectedDeliveryDate ? new Date(item.expectedDeliveryDate).toLocaleDateString() : '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col gap-2 items-start">
+                            <Badge variant={quote.status === 'submitted' ? 'success' : 'warning'}>
+                              {quote.status}
+                            </Badge>
+                            {quote.status === 'pending' && (
+                              <button
+                                onClick={() => {
+                                  const baseUrl = window.location.origin + window.location.pathname;
+                                  const link = `${baseUrl}?quoteId=${quote.id}`;
+                                  navigator.clipboard.writeText(link);
+                                  alert('Link copied to clipboard!');
+                                }}
+                                className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-1 rounded"
+                                title="Copy Quote Link"
+                              >
+                                <Copy className="w-3 h-3" />
+                                Copy Link
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">{item.vendorPrice ? `Rs. ${item.vendorPrice}` : '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600 font-medium max-w-[200px] truncate">{item.vendorRemarks || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">
-                          {quote.vendorImageUrl ? (
-                            <button onClick={() => setViewingImageUrl(quote.vendorImageUrl!)} className="text-indigo-600 hover:underline">View Image</button>
+                          {item.vendorImageUrl ? (
+                            <button onClick={() => setViewingImageUrl(item.vendorImageUrl!)} className="text-indigo-600 hover:underline">View Image</button>
                           ) : '-'}
                         </td>
                       </motion.tr>
-                    );
+                    ));
                   })}
                 </tbody>
               </table>
