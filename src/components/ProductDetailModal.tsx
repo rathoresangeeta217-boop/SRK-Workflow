@@ -95,7 +95,7 @@ export function ProductDetailModal({ isOpen, onClose, product, vendor }: Product
                         Unit Price
                       </div>
                       <div className="font-bold text-slate-800 text-lg">
-                        {product.details?.perUnitPrice ? `Rs. ${product.details.perUnitPrice}` : (product.price ? `Rs. ${product.price}` : '-')}
+                        {product.details?.perUnitPrice ? `₹${product.details.perUnitPrice}` : (product.price ? `₹${product.price}` : '-')}
                       </div>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">

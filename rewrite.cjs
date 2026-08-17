@@ -1,205 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { updateQuoteStatus } from '../lib/quotes';
-import { db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { Package, Send, Building2, CheckCircle2, Upload, X, Maximize2, Download } from 'lucide-react';
+const fs = require('fs');
 
-export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
-  const [quote, setQuote] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [itemResponses, setItemResponses] = useState<Record<number, { vendorPrice: string, vendorRemarks: string, imageFile: File | null, imagePreview: string | null }>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [logoError, setLogoError] = useState(false);
-  const [viewingImage, setViewingImage] = useState<string | null>(null);
+const code = fs.readFileSync('src/components/VendorQuoteForm.tsx', 'utf8');
 
-  useEffect(() => {
-    const fetchQuote = async () => {
-      try {
-        const docRef = doc(db, 'quotes', quoteId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = { id: docSnap.id, ...docSnap.data() } as any;
-          setQuote(data);
-          
-          const items = data.items && data.items.length > 0 ? data.items : [data];
-          const initialResponses: any = {};
-          items.forEach((item: any, i: number) => {
-            initialResponses[i] = { 
-              vendorPrice: item.vendorPrice || '', 
-              vendorRemarks: item.vendorRemarks || '', 
-              imageFile: null, 
-              imagePreview: item.vendorImageUrl || null 
-            };
-          });
-          setItemResponses(initialResponses);
-
-          if (data.status === 'submitted') {
-            setSubmitted(true);
-          }
-        }
-      } catch (e) {
-        console.error("Error fetching quote:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchQuote();
-  }, [quoteId]);
-
-  const handleResponseChange = (index: number, field: string, value: any) => {
-    setItemResponses(prev => ({
-      ...prev,
-      [index]: { ...prev[index], [field]: value }
-    }));
-  };
-
-  const handleImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      handleResponseChange(index, 'imageFile', file);
-      handleResponseChange(index, 'imagePreview', URL.createObjectURL(file));
-    }
-  };
-
-  const removeImage = (index: number) => {
-    handleResponseChange(index, 'imageFile', null);
-    handleResponseChange(index, 'imagePreview', null);
-  };
-
-  const resizeImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
-          let width = img.width;
-          let height = img.height;
-  
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.7));
-        };
-        img.onerror = (error) => reject(error);
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const items = quote.items && quote.items.length > 0 ? quote.items : [quote];
-      const updatedItems = [];
-      
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const response = itemResponses[i];
-        
-        let vendorImageUrl = '';
-        if (response.imageFile) {
-          vendorImageUrl = await resizeImage(response.imageFile);
-        }
-
-        updatedItems.push({
-          ...item,
-          vendorPrice: response.vendorPrice,
-          vendorRemarks: response.vendorRemarks,
-          ...(vendorImageUrl ? { vendorImageUrl } : {})
-        });
-      }
-
-      const updates: any = { status: 'submitted' };
-      if (quote.items && quote.items.length > 0) {
-        updates.items = updatedItems;
-      } else {
-        updates.vendorPrice = updatedItems[0].vendorPrice;
-        updates.vendorRemarks = updatedItems[0].vendorRemarks;
-        if (updatedItems[0].vendorImageUrl) updates.vendorImageUrl = updatedItems[0].vendorImageUrl;
-      }
-
-      await updateQuoteStatus(quoteId, updates);
-      setSubmitted(true);
-    } catch (e) {
-      console.error(e);
-      alert('Failed to submit quote. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
-      </div>
-    );
-  }
-
-  if (!quote) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mb-4">
-          <Package className="w-8 h-8" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-800">Quote Request Not Found</h2>
-        <p className="text-sm text-slate-500 mt-2 text-center">The link might be invalid or expired.</p>
-      </div>
-    );
-  }
-
-  if (submitted) {
-    const items = quote?.items && quote.items.length > 0 ? quote.items : [quote];
-
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-8 h-8" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Quote Submitted!</h2>
-          <p className="text-sm text-slate-500 mb-6">Thank you for submitting your quote to <strong>SRK Modular</strong>. The purchasing team will review it shortly.</p>
-          <div className="bg-slate-50 p-4 rounded-lg text-left text-sm text-slate-700 space-y-4 max-h-48 overflow-y-auto custom-scrollbar">
-            {items.map((item: any, i: number) => (
-              <div key={i} className="space-y-1 pb-3 border-b border-slate-200 last:border-0 last:pb-0">
-                <p className="font-semibold text-slate-800">{item.productName}</p>
-                <p className="text-slate-600">Your Price: ₹{item.vendorPrice || itemResponses[i]?.vendorPrice || '-'}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <button 
-              onClick={() => setSubmitted(false)}
-              className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              Edit Quote
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
+const prefix = code.substring(0, code.indexOf('return ('));
+const suffix = `return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
       <div className="w-full max-w-6xl">
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
@@ -232,7 +36,7 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
                   
                   {/* Left Column: Requirement Details */}
                   <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200 shadow-sm">
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2">Requirement Details {quote.items && quote.items.length > 1 ? `#${index + 1}` : ''}</h3>
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2">Requirement Details {quote.items && quote.items.length > 1 ? \`#\${index + 1}\` : ''}</h3>
                     <div className="space-y-3 text-sm">
                       <div className="flex gap-4">
                         <span className="text-slate-500 w-24 shrink-0 font-medium">Product</span>
@@ -290,7 +94,7 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
                   {/* Right Column: Vendor Input Form */}
                   <div className="space-y-6 lg:p-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Your Quote Price (₹) *</label>
+                      <label className="text-sm font-bold text-slate-700">Your Quote Price (Rs.) *</label>
                       <input 
                         type="number"
                         required
@@ -354,7 +158,7 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
                   {isSubmitting ? 'Submitting...' : (
                     <>
                       <Send className="w-5 h-5" />
-                      {quote.status === 'submitted' ? 'Resubmit Quote to SRK Modular' : 'Submit Quote to SRK Modular'}
+                      Submit Quote to SRK Modular
                     </>
                   )}
                 </button>
@@ -391,3 +195,7 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/VendorQuoteForm.tsx', prefix + suffix);
+console.log("Rewrote VendorQuoteForm.tsx completely!");

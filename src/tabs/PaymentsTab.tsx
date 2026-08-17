@@ -4,11 +4,11 @@ import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 
 const invoices = [
-  { id: 'INV-2026-1042', entity: 'Acme Corp', amount: '$12,450.00', dueDate: 'Nov 15, 2026', status: 'Unpaid', type: 'Receivable' },
-  { id: 'INV-2026-1041', entity: 'Global Industries', amount: '$8,230.50', dueDate: 'Oct 23, 2026', status: 'Paid', type: 'Receivable' },
-  { id: 'BILL-8890', entity: 'Steel Dynamics Inc.', amount: '$45,200.00', dueDate: 'Oct 20, 2026', status: 'Overdue', type: 'Payable' },
-  { id: 'INV-2026-1040', entity: 'Wayne Tech', amount: '$3,100.00', dueDate: 'Oct 15, 2026', status: 'Paid', type: 'Receivable' },
-  { id: 'BILL-8891', entity: 'Industrial Chemicals', amount: '$8,900.00', dueDate: 'Nov 01, 2026', status: 'Unpaid', type: 'Payable' },
+  { id: 'INV-2026-1042', entity: 'Acme Corp', amount: '₹12,450.00', dueDate: 'Nov 15, 2026', status: 'Unpaid', type: 'Receivable' },
+  { id: 'INV-2026-1041', entity: 'Global Industries', amount: '₹8,230.50', dueDate: 'Oct 23, 2026', status: 'Paid', type: 'Receivable' },
+  { id: 'BILL-8890', entity: 'Steel Dynamics Inc.', amount: '₹45,200.00', dueDate: 'Oct 20, 2026', status: 'Overdue', type: 'Payable' },
+  { id: 'INV-2026-1040', entity: 'Wayne Tech', amount: '₹3,100.00', dueDate: 'Oct 15, 2026', status: 'Paid', type: 'Receivable' },
+  { id: 'BILL-8891', entity: 'Industrial Chemicals', amount: '₹8,900.00', dueDate: 'Nov 01, 2026', status: 'Unpaid', type: 'Payable' },
 ];
 
 export function PaymentsTab() {
@@ -26,27 +26,27 @@ export function PaymentsTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Total Receivables" 
-          value="$342.5k" 
+          value="₹342.5k" 
           trend={{ value: 14.5, isPositive: true }}
           icon={<DollarSign className="w-5 h-5" />}
           colorClass="bg-emerald-50 text-emerald-600"
         />
         <StatCard 
           title="Total Payables" 
-          value="$128.2k" 
+          value="₹128.2k" 
           trend={{ value: 2.4, isPositive: false }}
           icon={<CreditCard className="w-5 h-5" />}
           colorClass="bg-rose-50 text-rose-600"
         />
         <StatCard 
           title="Available Cash Flow" 
-          value="$845.0k" 
+          value="₹845.0k" 
           icon={<DollarSign className="w-5 h-5" />}
           colorClass="bg-blue-50 text-blue-600"
         />
         <StatCard 
           title="Overdue Invoices" 
-          value="$54.1k" 
+          value="₹54.1k" 
           icon={<AlertCircle className="w-5 h-5" />}
           colorClass="bg-amber-50 text-amber-600"
         />

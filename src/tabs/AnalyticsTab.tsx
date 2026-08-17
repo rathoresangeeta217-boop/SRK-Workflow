@@ -17,14 +17,14 @@ export function AnalyticsTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Total Revenue (YTD)" 
-          value="$12.4M" 
+          value="₹12.4M" 
           trend={{ value: 14.2, isPositive: true, label: 'vs last year' }}
           icon={<DollarSign className="w-5 h-5" />}
           colorClass="bg-emerald-50 text-emerald-600"
         />
         <StatCard 
           title="Avg Order Value" 
-          value="$8,240" 
+          value="₹8,240" 
           trend={{ value: 5.1, isPositive: true, label: 'vs last month' }}
           icon={<TrendingUp className="w-5 h-5" />}
           colorClass="bg-blue-50 text-blue-600"

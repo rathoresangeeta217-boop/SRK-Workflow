@@ -20,7 +20,7 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder 
     address: '',
     gst: '',
     totalItems: 0,
-    totalAmount: '$0.00'
+    totalAmount: '₹0.00'
   });
 
   const [poFile, setPoFile] = useState<File | null>(null);
@@ -54,7 +54,7 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder 
             address: data.address || '',
             gst: data.gst || '',
             totalItems: data.totalItems || 0,
-            totalAmount: data.totalAmount || '$0.00'
+            totalAmount: data.totalAmount || '₹0.00'
           });
         })
         .catch(err => {
@@ -71,7 +71,7 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder 
         address: '',
         gst: '',
         totalItems: 0,
-        totalAmount: '$0.00'
+        totalAmount: '₹0.00'
       });
       setPoFile(null);
       setDrawingFile(null);
@@ -245,7 +245,7 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder 
                         value={formData.totalAmount}
                         onChange={handleChange}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                        placeholder="$0.00"
+                        placeholder="₹0.00"
                       />
                     </div>
                     <div className="space-y-1.5 md:col-span-2">

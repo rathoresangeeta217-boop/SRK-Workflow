@@ -131,7 +131,7 @@ export function CreatePOModal({ isOpen, onClose, products, vendors = [], onCreat
           product.details?.measuringMetric || '-',
           perUnitPrice,
           quantity.toString(),
-          `Rs. ${amount.toLocaleString()}`
+          `₹${amount.toLocaleString()}`
         ],
       ],
       headStyles: {
@@ -191,14 +191,14 @@ export function CreatePOModal({ isOpen, onClose, products, vendors = [], onCreat
     doc.setFont("helvetica", "normal");
     setBlackText();
     doc.text('Subtotal:', 135, finalY + 10);
-    doc.text(`Rs. ${amount.toLocaleString()}`, 191, finalY + 10, { align: 'right' });
+    doc.text(`₹${amount.toLocaleString()}`, 191, finalY + 10, { align: 'right' });
     
     doc.text('GST (18%):', 135, finalY + 20);
-    doc.text(`Rs. ${gstAmount.toLocaleString()}`, 191, finalY + 20, { align: 'right' });
+    doc.text(`₹${gstAmount.toLocaleString()}`, 191, finalY + 20, { align: 'right' });
     
     doc.setFont("helvetica", "bold");
     doc.text('Grand Total:', 135, finalY + 30);
-    doc.text(`Rs. ${grandTotal.toLocaleString()}`, 191, finalY + 30, { align: 'right' });
+    doc.text(`₹${grandTotal.toLocaleString()}`, 191, finalY + 30, { align: 'right' });
 
     let tY = finalY + 55;
 
@@ -299,7 +299,7 @@ export function CreatePOModal({ isOpen, onClose, products, vendors = [], onCreat
                   >
                     <option value="" disabled>Select a product</option>
                     {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} - {p.vendorName}</option>
+                      <option key={p.docId || p.id} value={p.id}>{p.name} - {p.vendorName}</option>
                     ))}
                   </select>
                 </div>

@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ShoppingBag, ShoppingCart, Users, AlertCircle, Plus, Truck, Filter, MoreHorizontal, FileText, Building2, Trash2, Search, MessageCircle, X, Copy, Mail } from 'lucide-react';
+import { ClipboardCheck, Edit, ShoppingBag, Camera, Loader2, ShoppingCart, Users, AlertCircle, Plus, Truck, Filter, MoreHorizontal, FileText, Building2, Trash2, Search, MessageCircle, X, Copy, Mail } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { NewProductModal } from '../components/NewProductModal';
@@ -8,7 +8,9 @@ import { CreatePOModal } from '../components/CreatePOModal';
 import { CartModal } from '../components/CartModal';
 import { ProductDetailModal } from '../components/ProductDetailModal';
 import { RequestQuoteModal } from '../components/RequestQuoteModal';
-import { useState, useEffect } from 'react';
+import { EditQuoteModal } from '../components/EditQuoteModal';
+import { ReceiveDeliveryModal } from '../components/ReceiveDeliveryModal';
+import React, { useState, useEffect } from 'react';
 import { saveProductFile, getProductFile } from '../lib/fileStorage';
 import { subscribeToPurchases, savePurchase, deletePurchase, Purchase } from '../lib/purchases';
 import { subscribeToProducts, saveProduct, deleteProduct, Product } from '../lib/products';
@@ -43,6 +45,9 @@ export function PurchaseTab() {
   const [isCreatePOModalOpen, setIsCreatePOModalOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [isRequestQuoteModalOpen, setIsRequestQuoteModalOpen] = useState(false);
+  const [selectedPO, setSelectedPO] = useState<Purchase | null>(null);
+  const [isReceiveDeliveryModalOpen, setIsReceiveDeliveryModalOpen] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedProductDetails, setSelectedProductDetails] = useState<Product | null>(null);
   const [viewingImageUrl, setViewingImageUrl] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
@@ -52,7 +57,115 @@ export function PurchaseTab() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [quoteSearchQuery, setQuoteSearchQuery] = useState('');
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+  const [visualMatchIds, setVisualMatchIds] = useState<string[] | null>(null);
   const [cart, setCart] = useState<{product: Product, quantity: number}[]>([]);
+  const parsePrice = (priceStr: string | undefined): number => {
+    if (!priceStr) return 0;
+    const match = priceStr.toString().match(/[\d,.]+/);
+    return match ? parseFloat(match[0].replace(/,/g, '')) : 0;
+  };
+
+  const calculateTotalSpendMTD = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return purchases.reduce((total, p) => {
+      let date = new Date();
+      if (p.createdAt) {
+        date = typeof p.createdAt.toDate === 'function' ? p.createdAt.toDate() : new Date(p.createdAt);
+      }
+      if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+        const unitPrice = parsePrice(p.price);
+        const quantity = parseInt(p.details?.quantity || '1', 10);
+        return total + (unitPrice * quantity * 1.18); // Including 18% GST
+      }
+      return total;
+    }, 0);
+  };
+
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1000000) return `₹${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
+    return `₹${amount.toFixed(0)}`;
+  };
+
+  const totalSpendStr = formatCurrency(calculateTotalSpendMTD());
+  const activeVendorsCount = vendors.length.toString();
+  const pendingDeliveriesCount = purchases.filter(p => p.status === 'Ordered' || p.status === 'Pending' || p.status === 'In Transit').length.toString();
+  const delayedItemsCount = purchases.filter(p => {
+    if (p.status === 'Delayed') return true;
+    if (p.status !== 'Delivered' && p.details?.eta) {
+      const etaDate = new Date(p.details.eta);
+      if (etaDate < new Date()) return true;
+    }
+    return false;
+  }).length.toString();
+
+
+  const handleImageSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    
+    const file = e.target.files[0];
+    setIsAnalyzingImage(true);
+    
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+      
+      const base64Data = await base64Promise;
+      
+      const catalog = activeTab === 'products' 
+        ? products.map(p => ({ 
+            id: p.id, 
+            name: p.name, 
+            specification: p.specification, 
+            category: 'product',
+            image: p.details?.productImageData // Pass the base64 image if it exists
+          }))
+        : quotes.map(q => ({ 
+            id: q.id, 
+            category: q.category, 
+            items: q.items?.map(i => i.productName + ' ' + (i.specification || '')),
+            image: q.items ? q.items.find((i: any) => i.imageUrl)?.imageUrl : undefined // Pass the first item's image
+          }));
+      
+      const response = await fetch('/api/visual-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageData: base64Data, catalog })
+      });
+      
+      if (!response.ok) throw new Error('Failed to analyze image');
+      
+      const data = await response.json();
+      if (data.matchingIds) {
+        setVisualMatchIds(data.matchingIds);
+        if (activeTab === 'products') setProductSearchQuery('');
+        else setQuoteSearchQuery('');
+        
+        if (data.matchingIds.length === 0) {
+          alert('No visually similar items were found in the catalog.');
+        }
+      }
+    } catch (err) {
+      console.error("Error analyzing image:", err);
+      alert("Could not identify the product in the image. Please try another image or use text search.");
+    } finally {
+      setIsAnalyzingImage(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
+
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -183,11 +296,24 @@ export function PurchaseTab() {
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) || 
-    (p.vendorName || '').toLowerCase().includes(productSearchQuery.toLowerCase()) ||
-    (p.specification || '').toLowerCase().includes(productSearchQuery.toLowerCase())
-  );
+  
+  const filteredQuotes = quotes.filter(quote => {
+    if (visualMatchIds) return visualMatchIds.includes(quote.id);
+    if (!quoteSearchQuery) return true;
+    const items = quote.items && quote.items.length > 0 ? quote.items : [quote];
+    return items.some((item: any) => 
+      item.productName?.toLowerCase().includes(quoteSearchQuery.toLowerCase()) || 
+      item.specification?.toLowerCase().includes(quoteSearchQuery.toLowerCase()) ||
+      quote.category?.toLowerCase().includes(quoteSearchQuery.toLowerCase())
+    );
+  });
+
+  const filteredProducts = products.filter(p => {
+    if (visualMatchIds) return visualMatchIds.includes(p.id);
+    return p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) || 
+      (p.vendorName || '').toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+      (p.specification || '').toLowerCase().includes(productSearchQuery.toLowerCase());
+  });
 
   return (
     <div className="space-y-6 pb-8">
@@ -264,6 +390,13 @@ export function PurchaseTab() {
         clearCart={clearCart}
       />
 
+      <EditQuoteModal
+        isOpen={!!editingQuote}
+        onClose={() => setEditingQuote(null)}
+        quote={editingQuote}
+        products={products}
+        vendors={vendors}
+      />
       <RequestQuoteModal
         isOpen={isRequestQuoteModalOpen}
         onClose={() => setIsRequestQuoteModalOpen(false)}
@@ -282,27 +415,27 @@ export function PurchaseTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Total Spend (MTD)" 
-          value="$1.2M" 
-          trend={{ value: 4.5, isPositive: false }}
+          value={totalSpendStr} 
+          
           icon={<ShoppingBag className="w-5 h-5" />}
           colorClass="bg-purple-50 text-purple-600"
         />
         <StatCard 
           title="Active Vendors" 
-          value="156" 
+          value={activeVendorsCount} 
           icon={<Users className="w-5 h-5" />}
           colorClass="bg-blue-50 text-blue-600"
         />
         <StatCard 
           title="Pending Deliveries" 
-          value="28" 
-          trend={{ value: 12.0, isPositive: true }}
+          value={pendingDeliveriesCount} 
+          
           icon={<Truck className="w-5 h-5" />}
           colorClass="bg-emerald-50 text-emerald-600"
         />
         <StatCard 
           title="Delayed Items" 
-          value="3" 
+          value={delayedItemsCount} 
           icon={<AlertCircle className="w-5 h-5" />}
           colorClass="bg-rose-50 text-rose-600"
         />
@@ -351,18 +484,62 @@ export function PurchaseTab() {
             {activeTab === 'quotes' && 'Requested Quotes'}
           </h2>
           <div className="flex gap-2">
-            {activeTab === 'products' && (
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                  <Search className="h-3.5 w-3.5 text-slate-400" />
+            {(activeTab === 'products' || activeTab === 'quotes') && (
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                    <Search className="h-3.5 w-3.5 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder={activeTab === 'products' ? "Search products..." : "Search by product name..."}
+                    value={activeTab === 'products' ? productSearchQuery : quoteSearchQuery}
+                    onChange={(e) => { if (activeTab === 'products') { setProductSearchQuery(e.target.value); setVisualMatchIds(null); } else { setQuoteSearchQuery(e.target.value); setVisualMatchIds(null); } }}
+                    className="pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-48 lg:w-64"
+                  />
+                  {(activeTab === 'products' ? productSearchQuery : quoteSearchQuery) && (
+                    <button 
+                      onClick={() => { if (activeTab === 'products') { setProductSearchQuery(''); setVisualMatchIds(null); } else { setQuoteSearchQuery(''); setVisualMatchIds(null); } }}
+                      className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={productSearchQuery}
-                  onChange={(e) => setProductSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1 border border-slate-300 rounded text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-48"
-                />
+                
+                <div className="relative">
+                                    {visualMatchIds && !isAnalyzingImage ? (
+                    <button 
+                      onClick={() => setVisualMatchIds(null)}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer border bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100"
+                    >
+                      <X className="w-4 h-4" />
+                      <span className="hidden sm:inline">Clear Image Match</span>
+                    </button>
+                  ) : (
+                    <label 
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer border ${
+                        isAnalyzingImage 
+                          ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' 
+                          : 'bg-white border-indigo-200 text-indigo-600 hover:bg-indigo-50'
+                      }`}
+                    >
+                      {isAnalyzingImage ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
+                      <span className="hidden sm:inline">{isAnalyzingImage ? 'Analyzing...' : 'Search by Image'}</span>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleImageSearch} 
+                        disabled={isAnalyzingImage}
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
             )}
             
@@ -411,7 +588,7 @@ export function PurchaseTab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 + i * 0.05 }}
-                      key={po.id} 
+                      key={po.docId || po.id} 
                       className="hover:bg-slate-50 transition-colors"
                     >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer">{po.id.substring(0, 8)}</td>
@@ -462,8 +639,16 @@ export function PurchaseTab() {
                           </div>
                         ) : (
                           <>
-                            <button className="text-slate-400 hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors">
-                              <MoreHorizontal className="w-5 h-5" />
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPO(po);
+                                setIsReceiveDeliveryModalOpen(true);
+                              }}
+                              className={`p-1.5 rounded-md transition-colors ${po.status === 'Delivered' ? 'text-green-500 hover:text-green-700 hover:bg-green-50' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                              title={po.status === 'Delivered' ? 'View QC Report' : 'Receive Delivery'}
+                            >
+                              {po.status === 'Delivered' ? <FileText className="w-5 h-5" /> : <ClipboardCheck className="w-5 h-5" />}
                             </button>
                             <button 
                               onClick={(e) => {
@@ -488,7 +673,13 @@ export function PurchaseTab() {
               <div className="p-6">
                 {filteredProducts.length === 0 ? (
                   <div className="text-center py-12 text-slate-500">
-                    {products.length === 0 ? 'No products found. Click "Add Product" to create one.' : 'No products match your search.'}
+                    
+                      products.length === 0 
+                        ? 'No products found. Click "Add Product" to create one.' 
+                        : (visualMatchIds 
+                            ? 'No visually similar products were found in your Product Directory.' 
+                            : 'No products match your search.')
+                    
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -497,7 +688,7 @@ export function PurchaseTab() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.1 + i * 0.05 }}
-                        key={product.id}
+                        key={product.docId || product.id}
                         className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col cursor-pointer"
                         onClick={() => setSelectedProductDetails(product)}
                       >
@@ -532,7 +723,7 @@ export function PurchaseTab() {
                             <div>
                               <div className="text-xs text-slate-500 font-medium mb-0.5">Unit Price</div>
                               <div className="font-bold text-lg text-emerald-600 leading-none">
-                                {product.details?.perUnitPrice ? `Rs. ${product.details.perUnitPrice}` : '-'}
+                                {product.details?.perUnitPrice ? `₹${product.details.perUnitPrice}` : '-'}
                               </div>
                             </div>
                             <button 
@@ -579,7 +770,7 @@ export function PurchaseTab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 + i * 0.05 }}
-                      key={vendor.id} 
+                      key={vendor.docId || vendor.id} 
                       className="hover:bg-slate-50 transition-colors"
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{vendor.name}</td>
@@ -645,19 +836,25 @@ export function PurchaseTab() {
                     <th className="px-6 py-3 border-b border-slate-200">Deadline</th>
                     <th className="px-6 py-3 border-b border-slate-200">Req. Delivery</th>
                     <th className="px-6 py-3 border-b border-slate-200">Status</th>
-                    <th className="px-6 py-3 border-b border-slate-200">Price (Rs.)</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Price (₹)</th>
                     <th className="px-6 py-3 border-b border-slate-200">Remarks</th>
                     <th className="px-6 py-3 border-b border-slate-200">Ref Image</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {quotes.length === 0 ? (
+                  {filteredQuotes.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-6 py-8 text-center text-sm text-slate-500">
-                        No quotes found. Click "Request Quote" to create one.
+                        
+                          quotes.length === 0 
+                            ? 'No quotes have been requested yet. Click "Request Quote" to create one.' 
+                            : (visualMatchIds 
+                                ? 'No visually similar quotes were found in your Requested Quotes list.' 
+                                : (quoteSearchQuery ? `No quotes found matching "${quoteSearchQuery}"` : 'No quotes found.'))
+                        
                       </td>
                     </tr>
-                  ) : quotes.flatMap((quote, i) => {
+                  ) : filteredQuotes.flatMap((quote, i) => {
                     const vendor = vendors.find(v => v.id === quote.vendorId);
                     const items = quote.items && quote.items.length > 0 ? quote.items : [quote as any];
                     
@@ -686,7 +883,7 @@ export function PurchaseTab() {
                             <Badge variant={quote.status === 'submitted' ? 'success' : 'warning'}>
                               {quote.status}
                             </Badge>
-                            {quote.status === 'pending' && (
+                            {true && (
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => {
@@ -713,6 +910,14 @@ SRK Modular Purchasing`;
                                 >
                                   <Mail className="w-3 h-3" />
                                   Email Link
+                                </button>
+                                <button
+                                  onClick={() => setEditingQuote(quote)}
+                                  className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-700 bg-slate-100 px-2 py-1 rounded"
+                                  title="Edit Quote"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                  Edit
                                 </button>
                                 <button
                                   onClick={() => {
@@ -748,7 +953,7 @@ ${link}`;
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">{item.vendorPrice ? `Rs. ${item.vendorPrice}` : '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">{item.vendorPrice ? `₹${item.vendorPrice}` : '-'}</td>
                         <td className="px-6 py-4 text-sm text-slate-600 font-medium max-w-[200px] truncate">{item.vendorRemarks || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">
                           {item.vendorImageUrl ? (
@@ -764,6 +969,12 @@ ${link}`;
           </div>
         </div>
       </motion.div>
+
+      <ReceiveDeliveryModal
+        isOpen={isReceiveDeliveryModalOpen}
+        onClose={() => setIsReceiveDeliveryModalOpen(false)}
+        purchase={selectedPO}
+      />
 
       {/* Image View Modal */}
       {viewingImageUrl && (

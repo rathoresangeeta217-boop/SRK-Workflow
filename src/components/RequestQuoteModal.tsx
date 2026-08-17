@@ -293,7 +293,7 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                           >
                             <option value="">-- Manual Entry --</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            {products.map(p => <option key={p.docId || p.id} value={p.id}>{p.name}</option>)}
                           </select>
                         </div>
                         
@@ -401,7 +401,7 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                   ) : (
                     <div className="space-y-2">
                       {filteredVendors.map(v => (
-                        <label key={v.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                        <label key={v.docId || v.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
                           <input 
                             type="checkbox"
                             checked={selectedVendorIds.includes(v.id)}

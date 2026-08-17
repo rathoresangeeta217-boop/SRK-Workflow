@@ -62,7 +62,7 @@ export function OrdersTab() {
     const orderData = {
       id: `ORD-2026-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
       customer: orderDetails.companyName || orderDetails.customerName || 'Unknown Customer',
-      amount: orderDetails.totalAmount || '$0.00',
+      amount: orderDetails.totalAmount || '₹0.00',
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       status: 'New',
       items: Number(orderDetails.totalItems) || 0,
@@ -287,7 +287,7 @@ export function OrdersTab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     transition={{ delay: 0.1 + i * 0.05 }}
-                    key={order.id} 
+                    key={order.docId || order.id} 
                     className="hover:bg-slate-50 transition-colors cursor-pointer"
                     onClick={() => setSelectedOrder(order)}
                   >

@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, orderBy, query, serverTimestamp, doc, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, orderBy, query, serverTimestamp, doc, onSnapshot, deleteDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from './firebase';
 
@@ -14,6 +14,7 @@ export interface PurchaseDetails {
   productId?: string;
   quantity?: string;
   eta?: string;
+  deliveryQC?: any;
 }
 
 export interface Purchase {
@@ -39,8 +40,14 @@ export const savePurchase = async (purchaseData: Partial<Purchase>) => {
   }
   
   const finalData = Object.fromEntries(
-    Object.entries(cleanData).filter(([_, v]) => v !== undefined)
+    Object.entries(cleanData).filter(([k, v]) => v !== undefined && k !== 'docId')
   );
+
+  if (purchaseData.docId) {
+    const docRef = doc(db, 'purchases', purchaseData.docId);
+    await updateDoc(docRef, finalData);
+    return purchaseData.docId;
+  }
 
   const docRef = await addDoc(getPurchasesCollection(), {
     ...finalData,

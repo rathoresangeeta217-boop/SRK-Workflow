@@ -168,7 +168,7 @@ export function NewProductModal({ isOpen, onClose, onAddProduct, vendors }: NewP
                       value={formData.totalUnitPrice}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
-                      placeholder="e.g. $1000"
+                      placeholder="e.g. ₹1000"
                       required
                     />
                   </div>
@@ -181,7 +181,7 @@ export function NewProductModal({ isOpen, onClose, onAddProduct, vendors }: NewP
                       value={formData.perUnitPrice}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
-                      placeholder="e.g. $10/kg"
+                      placeholder="e.g. ₹10/kg"
                       required
                     />
                   </div>
@@ -197,7 +197,7 @@ export function NewProductModal({ isOpen, onClose, onAddProduct, vendors }: NewP
                     >
                       <option value="" disabled>Select a vendor</option>
                       {vendors.map(v => (
-                        <option key={v.id} value={v.id}>{v.name}</option>
+                        <option key={v.docId || v.id} value={v.id}>{v.name}</option>
                       ))}
                     </select>
                   </div>

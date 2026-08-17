@@ -133,7 +133,7 @@ export function CartModal({ isOpen, onClose, cart, updateQuantity, removeFromCar
             item.product.details?.measuringMetric || '-',
             perUnitPriceStr,
             item.quantity.toString(),
-            `Rs. ${amount.toLocaleString()}`
+            `₹${amount.toLocaleString()}`
           ]);
         });
 
@@ -193,14 +193,14 @@ export function CartModal({ isOpen, onClose, cart, updateQuantity, removeFromCar
         doc.setFont("helvetica", "normal");
         setBlackText();
         doc.text('Subtotal:', 135, finalY + 10);
-        doc.text(`Rs. ${totalAmount.toLocaleString()}`, 191, finalY + 10, { align: 'right' });
+        doc.text(`₹${totalAmount.toLocaleString()}`, 191, finalY + 10, { align: 'right' });
         
         doc.text('GST (18%):', 135, finalY + 20);
-        doc.text(`Rs. ${gstAmount.toLocaleString()}`, 191, finalY + 20, { align: 'right' });
+        doc.text(`₹${gstAmount.toLocaleString()}`, 191, finalY + 20, { align: 'right' });
         
         doc.setFont("helvetica", "bold");
         doc.text('Grand Total:', 135, finalY + 30);
-        doc.text(`Rs. ${grandTotal.toLocaleString()}`, 191, finalY + 30, { align: 'right' });
+        doc.text(`₹${grandTotal.toLocaleString()}`, 191, finalY + 30, { align: 'right' });
 
         let tY = finalY + 55;
         doc.setDrawColor(139, 69, 19);

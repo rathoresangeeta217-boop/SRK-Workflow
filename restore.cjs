@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+const fs = require('fs');
+
+const code = `import React, { useState, useEffect } from 'react';
 import { updateQuoteStatus } from '../lib/quotes';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -22,20 +24,16 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
           const data = { id: docSnap.id, ...docSnap.data() } as any;
           setQuote(data);
           
-          const items = data.items && data.items.length > 0 ? data.items : [data];
-          const initialResponses: any = {};
-          items.forEach((item: any, i: number) => {
-            initialResponses[i] = { 
-              vendorPrice: item.vendorPrice || '', 
-              vendorRemarks: item.vendorRemarks || '', 
-              imageFile: null, 
-              imagePreview: item.vendorImageUrl || null 
-            };
-          });
-          setItemResponses(initialResponses);
-
           if (data.status === 'submitted') {
             setSubmitted(true);
+          } else {
+            // Initialize item responses
+            const items = data.items && data.items.length > 0 ? data.items : [data];
+            const initialResponses: any = {};
+            items.forEach((_: any, i: number) => {
+              initialResponses[i] = { vendorPrice: '', vendorRemarks: '', imageFile: null, imagePreview: null };
+            });
+            setItemResponses(initialResponses);
           }
         }
       } catch (e) {
@@ -182,17 +180,9 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
             {items.map((item: any, i: number) => (
               <div key={i} className="space-y-1 pb-3 border-b border-slate-200 last:border-0 last:pb-0">
                 <p className="font-semibold text-slate-800">{item.productName}</p>
-                <p className="text-slate-600">Your Price: ₹{item.vendorPrice || itemResponses[i]?.vendorPrice || '-'}</p>
+                <p className="text-slate-600">Your Price: Rs. {item.vendorPrice || itemResponses[i]?.vendorPrice || '-'}</p>
               </div>
             ))}
-          </div>
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <button 
-              onClick={() => setSubmitted(false)}
-              className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              Edit Quote
-            </button>
           </div>
         </div>
       </div>
@@ -232,7 +222,7 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
                   
                   {/* Left Column: Requirement Details */}
                   <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200 shadow-sm">
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2">Requirement Details {quote.items && quote.items.length > 1 ? `#${index + 1}` : ''}</h3>
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2">Requirement Details {quote.items && quote.items.length > 1 ? \`#\${index + 1}\` : ''}</h3>
                     <div className="space-y-3 text-sm">
                       <div className="flex gap-4">
                         <span className="text-slate-500 w-24 shrink-0 font-medium">Product</span>
@@ -290,7 +280,7 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
                   {/* Right Column: Vendor Input Form */}
                   <div className="space-y-6 lg:p-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Your Quote Price (₹) *</label>
+                      <label className="text-sm font-bold text-slate-700">Your Quote Price (Rs.) *</label>
                       <input 
                         type="number"
                         required
@@ -354,7 +344,7 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
                   {isSubmitting ? 'Submitting...' : (
                     <>
                       <Send className="w-5 h-5" />
-                      {quote.status === 'submitted' ? 'Resubmit Quote to SRK Modular' : 'Submit Quote to SRK Modular'}
+                      Submit Quote to SRK Modular
                     </>
                   )}
                 </button>
@@ -391,3 +381,6 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/VendorQuoteForm.tsx', code);
