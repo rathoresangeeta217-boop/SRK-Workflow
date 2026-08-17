@@ -195,7 +195,7 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
               <div className="h-16 bg-white rounded-xl flex items-center justify-center shadow-lg mb-3 p-2 min-w-[64px]">
                 {!logoError ? (
                   <img 
-                    src="/srk-logo.svg" 
+                    src="/srk-logo-final.png" 
                     alt="SRK Modular Logo" 
                     className="h-full object-contain" 
                     onError={() => setLogoError(true)}
