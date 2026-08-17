@@ -222,12 +222,17 @@ export function VendorQuoteForm({ quoteId }: { quoteId: string }) {
                       <div className="flex gap-4">
                         <span className="text-slate-500 w-24 shrink-0 font-medium">Product</span>
                         <div className="flex items-center gap-2">
-                          {item.imageUrl && (
-                            <img src={item.imageUrl} alt="" className="w-10 h-10 object-cover rounded border border-slate-200" />
-                          )}
                           <span className="text-slate-800 font-semibold">{item.productName}</span>
                         </div>
                       </div>
+                      {item.imageUrl && (
+                        <div className="flex gap-4">
+                          <span className="text-slate-500 w-24 shrink-0 font-medium pt-2">Ref. Image</span>
+                          <div className="w-full h-48 bg-white rounded-lg border border-slate-200 overflow-hidden">
+                            <img src={item.imageUrl} alt="Reference" className="w-full h-full object-contain p-1" />
+                          </div>
+                        </div>
+                      )}
                       {item.specification && (
                         <div className="flex gap-4">
                           <span className="text-slate-500 w-24 shrink-0 font-medium">Specification</span>
