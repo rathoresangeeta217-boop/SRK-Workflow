@@ -18,6 +18,7 @@ export function NewProductModal({ isOpen, onClose, onAddProduct, vendors }: NewP
     totalUnitPrice: '',
     perUnitPrice: '',
     measuringMetric: 'kg',
+    category: '',
     vendorId: '',
     details: ''
   });
@@ -72,6 +73,7 @@ export function NewProductModal({ isOpen, onClose, onAddProduct, vendors }: NewP
         totalUnitPrice: '',
         perUnitPrice: '',
         measuringMetric: 'kg',
+    category: '',
         vendorId: '',
         details: ''
       });
@@ -143,6 +145,25 @@ export function NewProductModal({ isOpen, onClose, onAddProduct, vendors }: NewP
                     />
                   </div>
                   
+                  
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Category</label>
+                    <input 
+                      type="text" 
+                      name="category"
+                      value={formData.category}
+                      onChange={handleChange}
+                      list="product-categories"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm bg-white"
+                      placeholder="Select or enter category (e.g. Hardware)"
+                    />
+                    <datalist id="product-categories">
+                      {Array.from(new Set(vendors.map(v => v.category).filter(Boolean))).map(cat => (
+                        <option key={cat} value={cat} />
+                      ))}
+                    </datalist>
+                  </div>
+
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Measuring Metric</label>
                     <select 

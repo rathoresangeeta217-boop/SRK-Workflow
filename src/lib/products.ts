@@ -14,6 +14,7 @@ export interface ProductDetails {
   measuringMetric?: string;
   totalUnitPrice?: string;
   perUnitPrice?: string;
+  category?: string;
 }
 
 export interface Product {
@@ -25,6 +26,7 @@ export interface Product {
   vendorId: string;
   vendorName: string;
   details?: ProductDetails;
+  category?: string;
   createdAt: any;
 }
 

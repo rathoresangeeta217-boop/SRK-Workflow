@@ -718,6 +718,7 @@ export function PurchaseTab() {
                         <div className="p-4 flex-1 flex flex-col">
                           <div className="text-xs font-medium text-indigo-600 mb-1">{product.vendorName}</div>
                           <h3 className="font-bold text-slate-800 line-clamp-2 leading-tight mb-1">{product.name}</h3>
+                          <div className="text-xs text-slate-500 mb-1">{product.category ? <span className="inline-block bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded mr-2">{product.category}</span> : null}</div>
                           <div className="text-xs text-slate-500 mb-3">{product.specification || 'No specification'} • {product.details?.measuringMetric || '-'}</div>
                           <div className="mt-auto pt-4 border-t border-slate-100 flex items-end justify-between">
                             <div>
