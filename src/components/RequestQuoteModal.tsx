@@ -40,7 +40,7 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
   const [createdQuotes, setCreatedQuotes] = useState<any[]>([]);
 
   const handleItemChange = (id: string, field: string, value: any) => {
-    setItems(items.map(item => {
+    setItems(prev => prev.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
         // Auto-fill from selected product
@@ -60,8 +60,13 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
   const handleImageChange = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      handleItemChange(id, 'imageFile', file);
-      handleItemChange(id, 'imagePreview', URL.createObjectURL(file));
+      const previewUrl = URL.createObjectURL(file);
+      setItems(prev => prev.map(item => {
+        if (item.id === id) {
+          return { ...item, imageFile: file, imagePreview: previewUrl };
+        }
+        return item;
+      }));
     }
   };
 
