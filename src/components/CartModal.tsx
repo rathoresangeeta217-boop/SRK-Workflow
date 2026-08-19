@@ -128,12 +128,12 @@ export function CartModal({ isOpen, onClose, cart, updateQuantity, removeFromCar
 
           tableBody.push([
             (index + 1).toString(),
-            item.product.id!, // Storing product ID here temporarily for didDrawCell
+            '', // Empty string for image cell, ID fetched via index in didDrawCell
             `${item.product.name}\n${item.product.specification ? `Size/Spec: ${item.product.specification}` : ''}`,
             item.product.details?.measuringMetric || '-',
-            perUnitPriceStr,
+            numericPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
             item.quantity.toString(),
-            `₹${amount.toLocaleString()}`
+            `${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
           ]);
         });
 
@@ -159,7 +159,7 @@ export function CartModal({ isOpen, onClose, cart, updateQuantity, removeFromCar
           },
           didDrawCell: (data) => {
             if (data.section === 'body' && data.column.index === 1) {
-              const prodId = data.cell.raw as string;
+              const prodId = items[data.row.index]?.product?.id;
               data.cell.text = []; // Clear the ID text
               
               const imgData = images[prodId];
@@ -193,14 +193,14 @@ export function CartModal({ isOpen, onClose, cart, updateQuantity, removeFromCar
         doc.setFont("helvetica", "normal");
         setBlackText();
         doc.text('Subtotal:', 135, finalY + 10);
-        doc.text(`₹${totalAmount.toLocaleString()}`, 191, finalY + 10, { align: 'right' });
+        doc.text(`${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 191, finalY + 10, { align: 'right' });
         
         doc.text('GST (18%):', 135, finalY + 20);
-        doc.text(`₹${gstAmount.toLocaleString()}`, 191, finalY + 20, { align: 'right' });
+        doc.text(`${gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 191, finalY + 20, { align: 'right' });
         
         doc.setFont("helvetica", "bold");
         doc.text('Grand Total:', 135, finalY + 30);
-        doc.text(`₹${grandTotal.toLocaleString()}`, 191, finalY + 30, { align: 'right' });
+        doc.text(`${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 191, finalY + 30, { align: 'right' });
 
         let tY = finalY + 55;
         doc.setDrawColor(139, 69, 19);

@@ -17,7 +17,8 @@ export function CreatePOModal({ isOpen, onClose, products, vendors = [], onCreat
   const [formData, setFormData] = useState({
     productId: '',
     quantity: '1',
-    eta: ''
+    eta: '',
+    advancePayment: ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -100,6 +101,9 @@ export function CreatePOModal({ isOpen, onClose, products, vendors = [], onCreat
     doc.text(`Date: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`, 196, 71, { align: 'right' });
     if (formData.eta) {
       doc.text(`ETA: ${new Date(formData.eta).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`, 196, 77, { align: 'right' });
+    }
+    if (formData.advancePayment) {
+      doc.text(`Advance: ${formData.advancePayment}`, 196, formData.eta ? 83 : 77, { align: 'right' });
     }
 
     // Greeting
@@ -239,6 +243,7 @@ export function CreatePOModal({ isOpen, onClose, products, vendors = [], onCreat
           price: selectedProduct.price,
           quantity: formData.quantity,
           eta: formData.eta,
+          advancePayment: formData.advancePayment,
           productImageData: selectedProduct.details?.productImageData
         });
       }
@@ -246,7 +251,8 @@ export function CreatePOModal({ isOpen, onClose, products, vendors = [], onCreat
       console.error("Error creating PO", error);
     } finally {
       setIsProcessing(false);
-      setFormData({ productId: '', quantity: '1', eta: '' });
+      setFormData({ productId: '', quantity: '1', eta: '',
+    advancePayment: '' });
       onClose();
     }
   };
@@ -316,13 +322,24 @@ export function CreatePOModal({ isOpen, onClose, products, vendors = [], onCreat
                       required
                     />
                   </div>
-                  <div className="space-y-1.5">
+                                    <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">ETA (Optional)</label>
                     <input 
                       type="date" 
                       name="eta"
                       value={formData.eta}
                       onChange={handleChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Advance Payment (Optional)</label>
+                    <input 
+                      type="text" 
+                      name="advancePayment"
+                      value={formData.advancePayment}
+                      onChange={handleChange}
+                      placeholder="e.g. 50% or ₹10,000"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                     />
                   </div>

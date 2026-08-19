@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, orderBy, query, serverTimestamp, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, orderBy, query, serverTimestamp, doc, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from './firebase';
 
@@ -73,4 +73,8 @@ export const updateQuoteStatus = async (docId: string, updates: Partial<QuoteReq
     ...updates,
     updatedAt: serverTimestamp()
   });
+};
+
+export const deleteQuoteRequest = async (docId: string) => {
+  await deleteDoc(doc(db, 'quotes', docId));
 };

@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ClipboardCheck, Edit, ShoppingBag, Camera, Loader2, ShoppingCart, Users, AlertCircle, Plus, Truck, Filter, MoreHorizontal, FileText, Building2, Trash2, Search, MessageCircle, X, Copy, Mail } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
@@ -16,7 +16,12 @@ import { subscribeToPurchases, savePurchase, deletePurchase, Purchase } from '..
 import { subscribeToProducts, saveProduct, deleteProduct, Product } from '../lib/products';
 import { subscribeToVendors, saveVendor, deleteVendor, Vendor } from '../lib/vendors';
 import { getPublicUrl } from '../lib/utils';
-import { subscribeToQuotes, QuoteRequest } from '../lib/quotes';
+import { subscribeToQuotes, QuoteRequest, deleteQuoteRequest } from '../lib/quotes';
+import { generatePOPDF } from '../lib/pdfHelper';
+import { Download, FolderKanban } from 'lucide-react';
+import { ProjectModal } from '../components/ProjectModal';
+import { subscribeToProjects, Project } from '../lib/projects';
+
 
 const ProductImage = ({ productId, productName, className }: { productId?: string, productName: string, className?: string }) => {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -38,7 +43,7 @@ const ProductImage = ({ productId, productName, className }: { productId?: strin
 };
 
 export function PurchaseTab() {
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'vendors' | 'quotes'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'vendors' | 'quotes' | 'arrivals' | 'returns'>('orders');
   
   const [isNewVendorModalOpen, setIsNewVendorModalOpen] = useState(false);
   const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
@@ -50,11 +55,15 @@ export function PurchaseTab() {
   const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedProductDetails, setSelectedProductDetails] = useState<Product | null>(null);
   const [viewingImageUrl, setViewingImageUrl] = useState<string | null>(null);
+  const [quoteToDelete, setQuoteToDelete] = useState<any>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [quoteSearchQuery, setQuoteSearchQuery] = useState('');
@@ -168,6 +177,10 @@ export function PurchaseTab() {
 
 
   const addToCart = (product: Product) => {
+    if (!selectedProjectId) {
+      alert("Please select a project or create a new one before adding items to the cart.");
+      return;
+    }
     setCart(prev => {
       const pId = product.id || product.docId;
       const existing = prev.find(item => (item.product.id || item.product.docId) === pId);
@@ -194,12 +207,14 @@ export function PurchaseTab() {
     const unsubProducts = subscribeToProducts(setProducts);
     const unsubVendors = subscribeToVendors(setVendors);
     const unsubQuotes = subscribeToQuotes(setQuotes);
+    const unsubProjects = subscribeToProjects(setProjects);
     
     return () => {
       unsubPurchases();
       unsubProducts();
       unsubVendors();
       unsubQuotes();
+      unsubProjects();
     };
   }, []);
 
@@ -273,14 +288,48 @@ export function PurchaseTab() {
     }
   };
 
+  const handleDownloadPO = async (po: Purchase) => {
+    const poNumber = po.details?.poNumber;
+    if (!poNumber) {
+      alert("This Purchase Order doesn't have a PO Number assigned.");
+      return;
+    }
+    
+    // Find all PO items with this PO number
+    const relatedPOs = purchases.filter(p => p.details?.poNumber === poNumber);
+    const vendor = vendors.find(v => v.name === po.vendorName) || vendors.find(v => v.id === po.vendorName);
+    
+    const items = relatedPOs.map(rpo => {
+      const product = products.find(p => p.id === rpo.details?.productId);
+      return {
+        product: product || { 
+          id: rpo.details?.productId || rpo.id,
+          name: rpo.productName,
+          price: rpo.price,
+          details: {
+            perUnitPrice: rpo.price,
+            measuringMetric: rpo.details?.measuringMetric,
+            productImageData: rpo.details?.productImageData
+          }
+        },
+        quantity: parseInt(rpo.details?.quantity || '1')
+      };
+    });
+    
+    await generatePOPDF(poNumber, po.vendorName, vendor, items);
+  };
+
   const handleCreatePO = async (poData: any) => {
     try {
+      const activeProject = projects.find(p => p.id === selectedProjectId);
       const newPurchase: Partial<Purchase> = {
         productName: poData.productName,
         vendorName: poData.vendorName,
         price: poData.price,
         status: 'Pending',
         details: {
+          projectId: selectedProjectId || '',
+          projectName: activeProject?.name || '',
           poNumber: poData.poNumber,
           productId: poData.productId,
           quantity: poData.quantity,
@@ -347,7 +396,13 @@ export function PurchaseTab() {
           </button>
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setIsCreatePOModalOpen(true)}
+              onClick={() => {
+                if (!selectedProjectId) {
+                  alert("Please select a project or create a new one before creating a PO.");
+                  return;
+                }
+                setIsCreatePOModalOpen(true);
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
             >
               <FileText className="w-4 h-4" />
@@ -441,6 +496,40 @@ export function PurchaseTab() {
         />
       </div>
 
+      
+      {/* Project Selector */}
+      <div className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <FolderKanban className="w-4 h-4 text-indigo-500" />
+            Active Project:
+          </label>
+          <select
+            value={selectedProjectId}
+            onChange={(e) => setSelectedProjectId(e.target.value)}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 min-w-[200px]"
+          >
+            <option value="">-- Select a Project --</option>
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.name} {p.customerName ? `(${p.customerName})` : ''}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setIsProjectModalOpen(true)}
+            className="px-3 py-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1"
+          >
+            <Plus className="w-4 h-4" /> New
+          </button>
+        </div>
+      </div>
+
+      {/* Project Modal */}
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+        onProjectCreated={(id) => setSelectedProjectId(id)}
+      />
+
       {/* Tab Navigation */}
       <div className="flex border-b border-slate-200 overflow-x-auto custom-scrollbar">
         <button
@@ -462,10 +551,22 @@ export function PurchaseTab() {
           Vendors
         </button>
         <button
+          onClick={() => setActiveTab('arrivals')}
+          className={`px-6 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'arrivals' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Today's Arrivals
+        </button>
+        <button
           onClick={() => setActiveTab('quotes')}
           className={`px-6 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'quotes' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           Quotes
+        </button>
+        <button
+          onClick={() => setActiveTab('returns')}
+          className={`px-6 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'returns' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Purchase Returns
         </button>
       </div>
 
@@ -479,9 +580,11 @@ export function PurchaseTab() {
         <div className="bg-white rounded-t-xl border border-slate-200 flex items-center justify-between px-6 py-4">
           <h2 className="font-bold text-slate-800">
             {activeTab === 'orders' && 'Active Purchase Orders'}
+            {activeTab === 'arrivals' && 'Today\'s Arrivals'}
             {activeTab === 'products' && 'Product Directory'}
             {activeTab === 'vendors' && 'Vendor Directory'}
             {activeTab === 'quotes' && 'Requested Quotes'}
+            {activeTab === 'returns' && 'Purchase Returns'}
           </h2>
           <div className="flex gap-2">
             {(activeTab === 'products' || activeTab === 'quotes') && (
@@ -568,6 +671,7 @@ export function PurchaseTab() {
                 <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase">
                   <tr>
                     <th className="px-6 py-3 border-b border-slate-200">PO Number</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Project</th>
                     <th className="px-6 py-3 border-b border-slate-200">Vendor</th>
                     <th className="px-6 py-3 border-b border-slate-200">Primary Item</th>
                     <th className="px-6 py-3 border-b border-slate-200">Amount</th>
@@ -591,7 +695,8 @@ export function PurchaseTab() {
                       key={po.docId || po.id} 
                       className="hover:bg-slate-50 transition-colors"
                     >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer">{po.id.substring(0, 8)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer">{po.details?.poNumber || po.id.substring(0, 8)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{po.details?.projectName || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-semibold">{po.vendorName}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">
                       <div className="flex items-center gap-2">
@@ -605,13 +710,19 @@ export function PurchaseTab() {
                         po.status === 'Delivered' ? 'success' : 
                         po.status === 'In Transit' ? 'info' : 
                         po.status === 'Delayed' ? 'error' : 
+                        po.status === 'Rejected' ? 'error' : 
                         po.status === 'Pending' ? 'warning' : 'info'
                       }>
                         {po.status}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-medium">
-                      {po.createdAt ? new Date(po.createdAt.seconds * 1000).toLocaleDateString() : 'Pending'}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex flex-col">
+                        <span className="text-slate-800 font-medium">{po.details?.eta ? new Date(po.details.eta).toLocaleDateString() : 'Not set'}</span>
+                        {po.details?.advancePayment && (
+                          <span className="text-xs text-indigo-600 font-semibold mt-0.5">Adv: {po.details.advancePayment}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
@@ -630,7 +741,7 @@ export function PurchaseTab() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeletePurchase(po.id);
+                                handleDeletePurchase(po.docId || po.id);
                               }}
                               className="px-2 py-1 bg-red-600 text-white hover:bg-red-700 rounded text-xs font-semibold"
                             >
@@ -645,10 +756,20 @@ export function PurchaseTab() {
                                 setSelectedPO(po);
                                 setIsReceiveDeliveryModalOpen(true);
                               }}
-                              className={`p-1.5 rounded-md transition-colors ${po.status === 'Delivered' ? 'text-green-500 hover:text-green-700 hover:bg-green-50' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
-                              title={po.status === 'Delivered' ? 'View QC Report' : 'Receive Delivery'}
+                              className={`p-1.5 rounded-md transition-colors ${(po.status === 'Delivered' || po.status === 'Rejected') ? 'text-green-500 hover:text-green-700 hover:bg-green-50' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                              title={(po.status === 'Delivered' || po.status === 'Rejected') ? 'View QC Report' : 'Receive Delivery'}
                             >
-                              {po.status === 'Delivered' ? <FileText className="w-5 h-5" /> : <ClipboardCheck className="w-5 h-5" />}
+                              {(po.status === 'Delivered' || po.status === 'Rejected') ? <FileText className="w-5 h-5" /> : <ClipboardCheck className="w-5 h-5" />}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadPO(po);
+                              }}
+                              className="text-slate-400 hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors"
+                              title="Download PO PDF"
+                            >
+                              <Download className="w-5 h-5" />
                             </button>
                             <button 
                               onClick={(e) => {
@@ -669,6 +790,176 @@ export function PurchaseTab() {
               </table>
             )}
 
+            {activeTab === 'arrivals' && (() => {
+              const todayStart = new Date();
+              todayStart.setHours(0, 0, 0, 0);
+              const todayEnd = new Date();
+              todayEnd.setHours(23, 59, 59, 999);
+
+              const todaysArrivals = purchases.filter(po => {
+                // Check if ETA is today
+                let isEtaToday = false;
+                if (po.details?.eta) {
+                  const etaDate = new Date(po.details.eta);
+                  isEtaToday = etaDate >= todayStart && etaDate <= todayEnd;
+                }
+                
+                // Check if delivered today
+                let isDeliveredToday = false;
+                if ((po.status === 'Delivered' || po.status === 'Rejected') && po.details?.deliveryQC?.deliveryDateTime) {
+                  const deliveryDate = new Date(po.details.deliveryQC.deliveryDateTime);
+                  isDeliveredToday = deliveryDate >= todayStart && deliveryDate <= todayEnd;
+                }
+
+                return isEtaToday || isDeliveredToday;
+              });
+
+              return (
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase">
+                  <tr>
+                    <th className="px-6 py-3 border-b border-slate-200">PO Number</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Vendor</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Primary Item</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Status</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Qty (Ordered/Rcvd)</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Timing</th>
+                    <th className="px-6 py-3 border-b border-slate-200 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {todaysArrivals.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                        No purchases are scheduled or have been delivered today.
+                      </td>
+                    </tr>
+                  ) : todaysArrivals.map((po, i) => {
+                    const isDelivered = po.status === 'Delivered';
+                    const isCompleted = po.status === 'Delivered' || po.status === 'Rejected';
+                    return (
+                    <motion.tr 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.1 + i * 0.05 }}
+                      key={po.docId || po.id} 
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer">{po.id.substring(0, 8)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-semibold">{po.vendorName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">
+                      <div className="flex items-center gap-2">
+                        <ProductImage productId={po.details?.productId} productName={po.productName} />
+                        {po.productName}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant={isDelivered ? 'success' : (po.status === 'Rejected' ? 'error' : 'warning')}>
+                        {isDelivered ? 'Delivered' : (po.status === 'Rejected' ? 'Rejected' : 'Expected Today')}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">
+                      {isCompleted ? (po.details?.deliveryQC?.quantityReceived || 'Yes') : (po.details?.quantity || '-')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-medium">
+                      {isCompleted 
+                        ? new Date(po.details?.deliveryQC?.deliveryDateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                        : 'Pending Arrival'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPO(po);
+                            setIsReceiveDeliveryModalOpen(true);
+                          }}
+                          className={`p-1.5 rounded-md transition-colors ${isCompleted ? 'text-green-500 hover:text-green-700 hover:bg-green-50' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                          title={isCompleted ? 'View QC Report' : 'Receive Delivery'}
+                        >
+                          {isCompleted ? <FileText className="w-5 h-5" /> : <ClipboardCheck className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                  )})}
+                </tbody>
+              </table>
+              );
+            })()}
+            {activeTab === 'returns' && (() => {
+              const rejectedPurchases = purchases.filter(po => po.status === 'Rejected');
+
+              return (
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase">
+                  <tr>
+                    <th className="px-6 py-3 border-b border-slate-200">PO Number</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Vendor</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Primary Item</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Status</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Qty (Ordered/Rejected)</th>
+                    <th className="px-6 py-3 border-b border-slate-200">Timing</th>
+                    <th className="px-6 py-3 border-b border-slate-200 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rejectedPurchases.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                        No purchase returns found.
+                      </td>
+                    </tr>
+                  ) : rejectedPurchases.map((po, i) => (
+                    <motion.tr 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.1 + i * 0.05 }}
+                      key={po.docId || po.id} 
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer">{po.id.substring(0, 8)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-semibold">{po.vendorName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">
+                      <div className="flex items-center gap-2">
+                        <ProductImage productId={po.details?.productId} productName={po.productName} />
+                        {po.productName}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant="error">
+                        Rejected
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">
+                      {po.details?.quantity || '-'} / {po.details?.deliveryQC?.quantityReceived || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-medium">
+                      {po.details?.deliveryQC?.deliveryDateTime
+                        ? new Date(po.details?.deliveryQC?.deliveryDateTime).toLocaleString([], {hour: '2-digit', minute:'2-digit'})
+                        : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPO(po);
+                            setIsReceiveDeliveryModalOpen(true);
+                          }}
+                          className="p-1.5 rounded-md transition-colors text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                          title="View Return Note"
+                        >
+                          <FileText className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+                </tbody>
+              </table>
+              );
+            })()}
             {activeTab === 'products' && (
               <div className="p-6">
                 {filteredProducts.length === 0 ? (
@@ -921,6 +1212,16 @@ SRK Modular Purchasing`;
                                   Edit
                                 </button>
                                 <button
+                                  onClick={async () => {
+                                    setQuoteToDelete(quote);
+                                  }}
+                                  className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-2 py-1 rounded"
+                                  title="Delete Quote"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Delete
+                                </button>
+                                <button
                                   onClick={() => {
                                     let phoneNum = vendor?.phone?.replace(/[^0-9]/g, '') || '';
                                     if (phoneNum.length >= 10) {
@@ -995,6 +1296,60 @@ ${link}`;
           </div>
         </div>
       )}
+      {/* Delete Quote Confirmation Modal */}
+      <AnimatePresence>
+        {quoteToDelete && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <Trash2 className="w-5 h-5 text-rose-500" />
+                  Delete Quote Request
+                </h3>
+                <button
+                  onClick={() => setQuoteToDelete(null)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                <p className="text-sm text-slate-600">
+                  Are you sure you want to delete this requested quote? This action cannot be undone.
+                </p>
+                <div className="mt-6 flex gap-3 justify-end">
+                  <button
+                    onClick={() => setQuoteToDelete(null)}
+                    className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await deleteQuoteRequest(quoteToDelete.docId || quoteToDelete.id);
+                        setQuoteToDelete(null);
+                      } catch (error) {
+                        console.error('Failed to delete quote:', error);
+                        // alert('Failed to delete quote request.');
+                      }
+                    }}
+                    className="px-4 py-2 text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 rounded-lg transition-colors"
+                  >
+                    Delete Quote
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

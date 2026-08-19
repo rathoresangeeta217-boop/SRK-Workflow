@@ -3,6 +3,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from './firebase';
 
 export interface PurchaseDetails {
+  projectId?: string;
+  projectName?: string;
   productName?: string;
   specification?: string;
   price?: string;

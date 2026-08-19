@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { X, CheckCircle, Save, FileText, Package, User, Calendar, ClipboardCheck, Upload, Download } from 'lucide-react';
+import { X, XCircle, CheckCircle, Save, FileText, Package, User, Calendar, ClipboardCheck, Upload, Download } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Purchase, savePurchase } from '../lib/purchases';
 import jsPDF from 'jspdf';
@@ -24,6 +24,7 @@ export function ReceiveDeliveryModal({ isOpen, onClose, purchase }: ReceiveDeliv
     damageImageBase64: ''
   });
 
+  const isCompleted = purchase?.status === 'Delivered' || purchase?.status === 'Rejected';
   const isDelivered = purchase?.status === 'Delivered';
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export function ReceiveDeliveryModal({ isOpen, onClose, purchase }: ReceiveDeliv
 
 
   useEffect(() => {
-    if (!isDelivered && !isProcessing && (formData.receivedBy || formData.quantityReceived || formData.deliveryDateTime)) {
+    if (!isCompleted && !isProcessing && (formData.receivedBy || formData.quantityReceived || formData.deliveryDateTime)) {
       const dateStr = formData.deliveryDateTime ? new Date(formData.deliveryDateTime).toLocaleString() : '[Date]';
       const summary = `Material received by ${formData.receivedBy || '[Name]'} on ${dateStr}. Quantity Received: ${formData.quantityReceived || '[Qty]'}. Quality: ${formData.qualityStatus}. Condition: ${formData.conditionStatus}.`;
       
@@ -56,13 +57,13 @@ export function ReceiveDeliveryModal({ isOpen, onClose, purchase }: ReceiveDeliv
         return prev;
       });
     }
-  }, [formData.receivedBy, formData.deliveryDateTime, formData.quantityReceived, formData.qualityStatus, formData.conditionStatus, isDelivered]);
+  }, [formData.receivedBy, formData.deliveryDateTime, formData.quantityReceived, formData.qualityStatus, formData.conditionStatus, isCompleted]);
 
   if (!isOpen || !purchase) return null;
 
 
   
-const generateSatisfactionLetter = () => {
+const generateSatisfactionLetter = (status: 'Delivered' | 'Rejected' = 'Delivered') => {
     if (!purchase) return;
     const doc = new jsPDF();
     
@@ -99,18 +100,18 @@ const generateSatisfactionLetter = () => {
     doc.setFontSize(12);
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
-    doc.text('GOODS RECEIPT NOTE', 22, 65);
+    doc.text(status === 'Rejected' ? 'GOODS RETURN NOTE (REJECTED)' : 'GOODS RECEIPT NOTE', 22, 65);
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`GRN No: GRN-${purchase.id.substring(0,6).toUpperCase()}`, pageWidth - 120, 65);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 50, 65);
+    doc.text(`Doc No: ${status === 'Rejected' ? 'REJ' : 'GRN'}-${purchase.id.substring(0,6).toUpperCase()}`, pageWidth - 90, 65);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 40, 65);
     
     // Watermark
     doc.setFontSize(70);
     doc.setTextColor(241, 245, 249);
     doc.setFont('helvetica', 'bold');
-    doc.text(formData.conditionStatus === 'Damaged' ? 'DAMAGED' : 'APPROVED', pageWidth/2, pageHeight/2 + 20, { 
+    doc.text(status === 'Rejected' ? 'REJECTED' : (formData.conditionStatus === 'Damaged' ? 'DAMAGED' : 'APPROVED'), pageWidth/2, pageHeight/2 + 20, { 
       align: 'center', 
       angle: 45 
     });
@@ -154,6 +155,7 @@ const generateSatisfactionLetter = () => {
         ['Delivered Quantity', formData.quantityReceived || 'N/A'],
         ['Quality Grade', formData.qualityStatus.toUpperCase()],
         ['Physical Condition', formData.conditionStatus.toUpperCase()],
+        ['Final Action', status === 'Rejected' ? 'REJECTED - SENT FOR PURCHASE RETURN' : 'ACCEPTED'],
       ],
       theme: 'grid',
       styles: { fontSize: 9, cellPadding: 4, lineColor: [203, 213, 225] },
@@ -240,7 +242,9 @@ const generateSatisfactionLetter = () => {
     doc.setFontSize(8);
     doc.setTextColor(71, 85, 105);
     doc.setFont('helvetica', 'italic');
-    const declaration = "DECLARATION: This document certifies that the aforementioned goods have been inspected by authorized personnel. The condition and quantities stated reflect the actual state of goods at the time of delivery. Any discrepancies must be reported to the procurement department within 24 hours of this document's issuance.";
+    const declaration = status === 'Rejected' 
+      ? "DECLARATION: This document certifies that the aforementioned goods have been inspected and REJECTED. The items do not meet the required quality standards and are hereby being sent for purchase return." 
+      : "DECLARATION: This document certifies that the aforementioned goods have been inspected by authorized personnel. The condition and quantities stated reflect the actual state of goods at the time of delivery. Any discrepancies must be reported to the procurement department within 24 hours of this document's issuance.";
     doc.text(doc.splitTextToSize(declaration, pageWidth - 40), 20, currentY + 6);
     
     currentY += 40;
@@ -286,32 +290,35 @@ const generateSatisfactionLetter = () => {
   };
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isDelivered) {
+    const handleAction = async (status: 'Delivered' | 'Rejected') => {
+    if (purchase?.status === status) {
       onClose();
       return;
     }
-
     setIsProcessing(true);
     try {
       await savePurchase({
         id: purchase.id,
         docId: purchase.docId,
-        status: 'Delivered',
+        status: status,
         details: {
           ...purchase.details,
           deliveryQC: formData
         }
       });
-      generateSatisfactionLetter();
+      generateSatisfactionLetter(status);
       onClose();
     } catch (error) {
-      console.error('Error receiving delivery:', error);
+      console.error('Error processing delivery:', error);
       alert('Failed to save delivery details.');
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleAction('Delivered');
   };
 
   return (
@@ -325,12 +332,12 @@ const generateSatisfactionLetter = () => {
         >
           <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDelivered ? 'bg-green-100 text-green-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                <ClipboardCheck className="w-5 h-5" />
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${purchase?.status === 'Rejected' ? 'bg-rose-100 text-rose-600' : isDelivered ? 'bg-green-100 text-green-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                {purchase?.status === 'Rejected' ? <XCircle className="w-5 h-5" /> : <ClipboardCheck className="w-5 h-5" />}
               </div>
               <div>
                 <h2 className="text-lg font-bold text-slate-800">
-                  {isDelivered ? 'Delivery & QC Report' : 'Receive Delivery & QC'}
+                  {purchase?.status === 'Rejected' ? 'Goods Return Note (Rejected)' : isDelivered ? 'Delivery & QC Report' : 'Receive Delivery & QC'}
                 </h2>
                 <p className="text-xs text-slate-500 font-medium">PO: {purchase.id.substring(0, 8)} - {purchase.productName}</p>
               </div>
@@ -356,7 +363,7 @@ const generateSatisfactionLetter = () => {
                     <input
                       type="text"
                       required
-                      disabled={isDelivered}
+                      disabled={isCompleted}
                       value={formData.receivedBy}
                       onChange={e => setFormData({ ...formData, receivedBy: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm font-medium disabled:bg-slate-50 disabled:text-slate-600"
@@ -368,7 +375,7 @@ const generateSatisfactionLetter = () => {
                     <input
                       type="datetime-local"
                       required
-                      disabled={isDelivered}
+                      disabled={isCompleted}
                       value={formData.deliveryDateTime}
                       onChange={e => setFormData({ ...formData, deliveryDateTime: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm font-medium disabled:bg-slate-50 disabled:text-slate-600"
@@ -387,7 +394,7 @@ const generateSatisfactionLetter = () => {
                     <input
                       type="text"
                       required
-                      disabled={isDelivered}
+                      disabled={isCompleted}
                       value={formData.quantityReceived}
                       onChange={e => setFormData({ ...formData, quantityReceived: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm font-medium disabled:bg-slate-50 disabled:text-slate-600"
@@ -398,7 +405,7 @@ const generateSatisfactionLetter = () => {
                     <label className="text-xs font-bold text-slate-700 uppercase">Quality Assessment</label>
                     <select
                       value={formData.qualityStatus}
-                      disabled={isDelivered}
+                      disabled={isCompleted}
                       onChange={e => setFormData({ ...formData, qualityStatus: e.target.value as any })}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm font-medium disabled:bg-slate-50 disabled:text-slate-600"
                     >
@@ -410,24 +417,24 @@ const generateSatisfactionLetter = () => {
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 uppercase">Physical Condition</label>
                     <div className="flex gap-3 h-10 items-center">
-                      <label className={`flex items-center gap-2 text-sm font-medium ${isDelivered ? 'text-slate-500' : 'text-slate-700 cursor-pointer'}`}>
+                      <label className={`flex items-center gap-2 text-sm font-medium ${isCompleted ? 'text-slate-500' : 'text-slate-700 cursor-pointer'}`}>
                         <input
                           type="radio"
                           name="condition"
                           value="Intact"
-                          disabled={isDelivered}
+                          disabled={isCompleted}
                           checked={formData.conditionStatus === 'Intact'}
                           onChange={e => setFormData({ ...formData, conditionStatus: 'Intact' })}
                           className="text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                         />
                         Intact
                       </label>
-                      <label className={`flex items-center gap-2 text-sm font-medium ${isDelivered ? 'text-slate-500' : 'text-slate-700 cursor-pointer'}`}>
+                      <label className={`flex items-center gap-2 text-sm font-medium ${isCompleted ? 'text-slate-500' : 'text-slate-700 cursor-pointer'}`}>
                         <input
                           type="radio"
                           name="condition"
                           value="Damaged"
-                          disabled={isDelivered}
+                          disabled={isCompleted}
                           checked={formData.conditionStatus === 'Damaged'}
                           onChange={e => setFormData({ ...formData, conditionStatus: 'Damaged' })}
                           className="text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
@@ -446,7 +453,7 @@ const generateSatisfactionLetter = () => {
                     <Upload className="w-4 h-4 text-rose-500" /> Damage Proof Image
                   </h3>
                   <div className="space-y-3">
-                    {!isDelivered && (
+                    {!isCompleted && (
                       <input 
                         type="file" 
                         accept="image/*"
@@ -468,7 +475,7 @@ const generateSatisfactionLetter = () => {
                         <img src={formData.damageImageBase64} alt="Damage Proof" className="max-h-64 object-contain w-full bg-slate-100" />
                       </div>
                     )}
-                    {isDelivered && !formData.damageImageBase64 && (
+                    {isCompleted && !formData.damageImageBase64 && (
                       <p className="text-sm text-slate-500">No damage image uploaded.</p>
                     )}
                   </div>
@@ -484,7 +491,7 @@ const generateSatisfactionLetter = () => {
                     <label className="text-xs font-bold text-slate-700 uppercase">QC Report Summary</label>
                     <textarea
                       rows={2}
-                      disabled={isDelivered}
+                      disabled={isCompleted}
                       value={formData.qcReport}
                       onChange={e => setFormData({ ...formData, qcReport: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm custom-scrollbar resize-none font-medium disabled:bg-slate-50 disabled:text-slate-600"
@@ -495,7 +502,7 @@ const generateSatisfactionLetter = () => {
                     <label className="text-xs font-bold text-slate-700 uppercase">Additional Remarks</label>
                     <textarea
                       rows={2}
-                      disabled={isDelivered}
+                      disabled={isCompleted}
                       value={formData.remarks}
                       onChange={e => setFormData({ ...formData, remarks: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm custom-scrollbar resize-none font-medium disabled:bg-slate-50 disabled:text-slate-600"
@@ -509,24 +516,34 @@ const generateSatisfactionLetter = () => {
           </div>
 
           <div className="p-4 border-t border-slate-100 bg-white flex justify-end gap-3 shrink-0">
-            {isDelivered ? (
+            {isCompleted ? (
               <div className="flex gap-3">
+                {purchase?.status === 'Delivered' && (
+                  <button
+                    type="button"
+                    onClick={() => handleAction('Rejected')}
+                    disabled={isProcessing}
+                    className="px-6 py-2.5 bg-rose-50 text-rose-700 font-semibold hover:bg-rose-100 rounded-xl transition-colors flex items-center gap-2"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Process Return
+                  </button>
+                )}
                 <button 
                   type="button"
-                  onClick={generateSatisfactionLetter}
+                  onClick={() => generateSatisfactionLetter(purchase?.status as any)}
                   className="px-6 py-2.5 bg-indigo-50 text-indigo-700 font-semibold hover:bg-indigo-100 rounded-xl transition-colors flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" />
                   Download Letter
                 </button>
-
-              <button 
-                type="button"
-                onClick={onClose}
-                className="px-6 py-2.5 bg-slate-900 text-white font-semibold hover:bg-slate-800 rounded-xl transition-colors"
-              >
-                Close
-              </button>
+                <button 
+                  type="button"
+                  onClick={onClose}
+                  className="px-6 py-2.5 bg-slate-900 text-white font-semibold hover:bg-slate-800 rounded-xl transition-colors"
+                >
+                  Close
+                </button>
               </div>
             ) : (
               <>
@@ -538,15 +555,28 @@ const generateSatisfactionLetter = () => {
                   Cancel
                 </button>
                 <button
+                  type="button"
+                  onClick={() => handleAction('Rejected')}
+                  disabled={isProcessing}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {isProcessing ? 'Processing...' : (
+                    <>
+                      <XCircle className="w-5 h-5" />
+                      Reject & Return
+                    </>
+                  )}
+                </button>
+                <button
                   type="submit"
                   form="receiveDeliveryForm"
                   disabled={isProcessing}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
                 >
                   {isProcessing ? 'Saving...' : (
                     <>
                       <CheckCircle className="w-5 h-5" />
-                      Complete Delivery
+                      Accept Delivery
                     </>
                   )}
                 </button>
