@@ -2,44 +2,56 @@ const fs = require('fs');
 
 let content = fs.readFileSync('src/components/NewOrderModal.tsx', 'utf8');
 
-if (!content.includes('employeeName?: string')) {
-  content = content.replace(
-    "onAddOrder?: (order: any) => void;",
-    "onAddOrder?: (order: any) => void;\n  employeeName?: string;"
-  );
-  
-  content = content.replace(
-    "export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder }: NewOrderModalProps) {",
-    "export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder, employeeName }: NewOrderModalProps) {"
-  );
-  
-  content = content.replace(
-    "const [formData, setFormData] = useState({",
-    "const [formData, setFormData] = useState({\n    employeeName: '',"
-  );
-  
-  content = content.replace(
-    "setFormData({",
-    "setFormData({\n        employeeName: employeeName || '',"
-  );
-  
-  content = content.replace(
-    /setFormData\(\{\s*\n\s*\.\.\.formData,/,
-    "setFormData({\n            ...formData,\n            employeeName: employeeName || '',"
-  );
-  
-  content = content.replace(
-    "setFormData({",
-    "setFormData({\n        employeeName: '',"
-  );
+const replacement = `      fetch('/api/parse-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ fileData })
+      })
+        .then(async res => {
+          if (!res.ok) {
+            let errorMsg = 'Server error';
+            try {
+              const errorData = await res.json();
+              errorMsg = errorData.error || errorMsg;
+            } catch (e) {
+              if (res.status === 413) errorMsg = "File is too large (must be under 4MB).";
+              else if (res.status === 504) errorMsg = "The AI service timed out while reading the file.";
+              else errorMsg = \`HTTP \${res.status}\`;
+            }
+            throw new Error(errorMsg);
+          }
+          return res.json();
+        })
+        .then(data => {
+          if (data.error) {
+            console.error('API Error:', data.error);
+            alert(\`AI parsing is temporarily unavailable: \${data.error}. Please fill out the details manually.\`);
+            return;
+          }
+          setFormData({
+            ...formData,
+            employeeName: employeeName || '',
+            customerName: data.customerName || '',
+            companyName: data.companyName || '',
+            mobileNumber: data.mobileNumber || '',
+            email: data.email || '',
+            address: data.address || '',
+            gst: data.gst || '',
+            totalItems: data.totalItems || 0,
+            totalAmount: data.totalAmount || '₹0.00',
+            advancePayment: data.advancePayment || '',
+            transportationCharges: data.transportationCharges || '',
+            installationCharges: data.installationCharges || ''
+          });
+        })
+        .catch(err => {
+          console.error("Error parsing order:", err);
+          alert(\`Failed to process quotation: \${err.message}. Please fill the details manually.\`);
+        })
+        .finally(() => setIsProcessing(false));`;
 
-  // Fix the first replacement of setFormData({ which was inside useEffect when parsing starts
-  content = content.replace(
-    "setFormData({\n        employeeName: employeeName || '',\n            ...formData,\n            employeeName: employeeName || '',",
-    "setFormData({\n            ...formData,\n            employeeName: employeeName || '',"
-  );
-
-  // We should just use a precise regex to update the formData initial state and resets.
-}
+content = content.replace(/fetch\('\/api\/parse-order'[\s\S]*?finally\(\(\) => setIsProcessing\(false\)\);/m, replacement);
 
 fs.writeFileSync('src/components/NewOrderModal.tsx', content);

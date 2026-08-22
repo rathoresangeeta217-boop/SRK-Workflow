@@ -37,14 +37,28 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder,
     if (isOpen && fileName && fileData) {
       setIsProcessing(true);
       
-      fetch('/api/parse-order', {
+            fetch('/api/parse-order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ fileData })
       })
-        .then(res => res.json())
+        .then(async res => {
+          if (!res.ok) {
+            let errorMsg = 'Server error';
+            try {
+              const errorData = await res.json();
+              errorMsg = errorData.error || errorMsg;
+            } catch (e) {
+              if (res.status === 413) errorMsg = "File is too large (must be under 4MB).";
+              else if (res.status === 504) errorMsg = "The AI service timed out while reading the file.";
+              else errorMsg = `HTTP ${res.status}`;
+            }
+            throw new Error(errorMsg);
+          }
+          return res.json();
+        })
         .then(data => {
           if (data.error) {
             console.error('API Error:', data.error);
@@ -69,7 +83,7 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder,
         })
         .catch(err => {
           console.error("Error parsing order:", err);
-          alert("Failed to process quotation due to a network or AI error. Please fill the details manually.");
+          alert(`Failed to process quotation: ${err.message}. Please fill the details manually.`);
         })
         .finally(() => setIsProcessing(false));
     } else if (!isOpen) {

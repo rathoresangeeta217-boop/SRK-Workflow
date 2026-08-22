@@ -71,7 +71,7 @@ async function startServer() {
       `;
 
       const response = await ai.interactions.create({
-        model: 'gemini-3.1-flash-lite',
+        model: 'gemini-3.7-flash',
         input: [
           { type: 'text', text: prompt },
           {
@@ -130,7 +130,7 @@ async function startServer() {
       For example: "Office Chair", "Wooden Desk", "Conference Table", "Drawer Handle".`;
 
       const response = await ai.interactions.create({
-        model: 'gemini-3.1-flash-lite',
+        model: 'gemini-3.7-flash',
         input: [
           { type: 'text', text: prompt },
           {
@@ -207,7 +207,7 @@ async function startServer() {
 4. Return ONLY a JSON object with a single array property "matchingIds" containing the string IDs of the matched items. If no items match, return {"matchingIds": []}. Do not return any other text.` });
 
       const response = await ai.interactions.create({
-        model: 'gemini-3.1-flash-lite',
+        model: 'gemini-3.7-flash',
         input: parts
       });
 
