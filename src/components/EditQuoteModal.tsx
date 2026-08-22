@@ -202,7 +202,7 @@ export function EditQuoteModal({ isOpen, onClose, quote, products, vendors }: Ed
 
               <div className="space-y-4">
                 {items.map((item, index) => (
-                  <div key={item.id} className="p-5 bg-slate-50 rounded-xl border border-slate-200 relative group">
+                  <div key={`${item.id || 'k'}-${index}`} className="p-5 bg-slate-50 rounded-xl border border-slate-200 relative group">
                     {items.length > 1 && (
                       <button type="button" onClick={() => removeItem(item.id)} className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
                         <Trash2 className="w-4 h-4" />
@@ -218,7 +218,7 @@ export function EditQuoteModal({ isOpen, onClose, quote, products, vendors }: Ed
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                         >
                           <option value="">-- Manual Entry --</option>
-                          {products.map(p => <option key={p.docId || p.id} value={p.id}>{p.name}</option>)}
+                          {products.map((p, i) => <option key={`${p.docId || p.id || 'k'}-${i}`} value={p.id}>{p.name}</option>)}
                         </select>
                       </div>
                       

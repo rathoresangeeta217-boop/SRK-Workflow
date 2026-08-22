@@ -158,8 +158,8 @@ export function NewVendorModal({ isOpen, onClose, onAddVendor, vendors }: NewVen
                 <div className="mt-8 border-t border-slate-200 pt-6">
                   <h4 className="text-sm font-bold text-slate-800 mb-4">Existing Vendors</h4>
                   <div className="space-y-3">
-                    {vendors.map((vendor: any) => (
-                      <div key={vendor.docId || vendor.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                    {vendors.map((vendor: any, i: number) => (
+                      <div key={`${vendor.docId || vendor.id || 'k'}-${i}`} className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
                         <p className="font-semibold text-slate-800 text-sm">{vendor.name}</p>
                         <div className="flex flex-wrap gap-x-4 mt-2">
                           {vendor.category && (

@@ -510,8 +510,8 @@ export function PurchaseTab() {
             className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 min-w-[200px]"
           >
             <option value="">-- Select a Project --</option>
-            {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.name} {p.customerName ? `(${p.customerName})` : ''}</option>
+            {projects.map((p, i) => (
+              <option key={`${p.docId || p.id || 'k'}-${i}`} value={p.id}>{p.name} {p.customerName ? `(${p.customerName})` : ''}</option>
             ))}
           </select>
           <button
@@ -692,7 +692,7 @@ export function PurchaseTab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 + i * 0.05 }}
-                      key={po.docId || po.id} 
+                      key={`${po.docId || po.id || 'k'}-${i}`} 
                       className="hover:bg-slate-50 transition-colors"
                     >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer">{po.details?.poNumber || po.id.substring(0, 8)}</td>
@@ -842,7 +842,7 @@ export function PurchaseTab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 + i * 0.05 }}
-                      key={po.docId || po.id} 
+                      key={`${po.docId || po.id || 'k'}-${i}`} 
                       className="hover:bg-slate-50 transition-colors"
                     >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer">{po.id.substring(0, 8)}</td>
@@ -915,7 +915,7 @@ export function PurchaseTab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 + i * 0.05 }}
-                      key={po.docId || po.id} 
+                      key={`${po.docId || po.id || 'k'}-${i}`} 
                       className="hover:bg-slate-50 transition-colors"
                     >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer">{po.id.substring(0, 8)}</td>
@@ -979,7 +979,7 @@ export function PurchaseTab() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.1 + i * 0.05 }}
-                        key={product.docId || product.id}
+                        key={`${product.docId || product.id || 'k'}-${i}`}
                         className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col cursor-pointer"
                         onClick={() => setSelectedProductDetails(product)}
                       >
@@ -1062,7 +1062,7 @@ export function PurchaseTab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 + i * 0.05 }}
-                      key={vendor.docId || vendor.id} 
+                      key={`${vendor.docId || vendor.id || 'k'}-${i}`} 
                       className="hover:bg-slate-50 transition-colors"
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{vendor.name}</td>
@@ -1155,7 +1155,7 @@ export function PurchaseTab() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.1 + (i + itemIdx * 0.1) * 0.05 }}
-                        key={`${quote.id}-${itemIdx}`} 
+                        key={`${quote.docId || quote.id || 'k'}-${itemIdx}`} 
                         className="hover:bg-slate-50 transition-colors"
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">

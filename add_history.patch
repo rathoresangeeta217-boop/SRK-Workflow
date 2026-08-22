@@ -1,0 +1,62 @@
+--- src/components/PaymentManagementModal.tsx
++++ src/components/PaymentManagementModal.tsx
+@@ -2,7 +2,7 @@
+ import { motion, AnimatePresence } from 'motion/react';
+-import { X, Plus, Save, Upload, CheckCircle2, AlertCircle, Lock, Unlock, Download } from 'lucide-react';
++import { X, Plus, Save, Upload, CheckCircle2, AlertCircle, Lock, Unlock, Download, Clock, ChevronRight } from 'lucide-react';
+ import { Order } from '../lib/orders';
+ import { PaymentRecord, PaymentPhase, getPaymentForOrder, savePaymentRecord } from '../lib/payments';
+@@ -28,6 +28,7 @@
+   const [phaseToUnlock, setPhaseToUnlock] = useState<string | null>(null);
+   const [unlockPassword, setUnlockPassword] = useState('');
+   const [viewImage, setViewImage] = useState<string | null>(null);
++  const [showHistory, setShowHistory] = useState(false);
+ 
+   useEffect(() => {
+@@ -328,6 +329,40 @@
+               </div>
+             </section>
+ 
++            {/* Rate Edit History */}
++            {record.rateEditHistory && record.rateEditHistory.length > 0 && (
++              <section className="space-y-4">
++                <button
++                  onClick={() => setShowHistory(!showHistory)}
++                  className="flex items-center gap-2 text-slate-700 font-semibold text-lg hover:text-indigo-600 transition-colors w-full text-left"
++                >
++                  <Clock className="w-5 h-5 text-indigo-500" />
++                  Price Change History
++                  <ChevronRight className={\`w-5 h-5 transition-transform \${showHistory ? 'rotate-90' : ''}\`} />
++                </button>
++                
++                <AnimatePresence>
++                  {showHistory && (
++                    <motion.div
++                      initial={{ opacity: 0, height: 0 }}
++                      animate={{ opacity: 1, height: 'auto' }}
++                      exit={{ opacity: 0, height: 0 }}
++                      className="overflow-hidden"
++                    >
++                      <div className="space-y-3 pl-7 border-l-2 border-slate-100 ml-2 py-2">
++                        {[...record.rateEditHistory].reverse().map((entry, index) => (
++                          <div key={index} className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm">
++                            <div className="flex justify-between text-xs text-slate-500 mb-2">
++                              <span>{new Date(entry.timestamp).toLocaleString('en-IN')}</span>
++                            </div>
++                            <div className="font-medium text-slate-800 mb-1">Reason: {entry.reason}</div>
++                            <ul className="list-disc pl-4 space-y-0.5 text-slate-600 text-xs">
++                              {entry.changes.map((change, i) => (
++                                <li key={i}>{change}</li>
++                              ))}
++                            </ul>
++                          </div>
++                        ))}
++                      </div>
++                    </motion.div>
++                  )}
++                </AnimatePresence>
++              </section>
++            )}
++
+             {/* Payment Phases Section */}
+             <section className="space-y-4">

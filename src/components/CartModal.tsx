@@ -284,8 +284,8 @@ export function CartModal({ isOpen, onClose, cart, updateQuantity, removeFromCar
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {cart.map(item => (
-                    <div key={item.product.id} className="flex items-center gap-4 p-4 border border-slate-200 rounded-xl bg-white">
+                  {cart.map((item, i) => (
+                    <div key={`${item.product.docId || item.product.id || 'k'}-${i}`} className="flex items-center gap-4 p-4 border border-slate-200 rounded-xl bg-white">
                       <div className="flex-1">
                         <div className="text-xs font-medium text-indigo-600 mb-0.5">{item.product.vendorName}</div>
                         <h4 className="font-bold text-slate-800 leading-tight">{item.product.name}</h4>

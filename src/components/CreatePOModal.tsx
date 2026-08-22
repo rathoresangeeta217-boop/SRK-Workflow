@@ -304,8 +304,8 @@ export function CreatePOModal({ isOpen, onClose, products, vendors = [], onCreat
                     required
                   >
                     <option value="" disabled>Select a product</option>
-                    {products.map(p => (
-                      <option key={p.docId || p.id} value={p.id}>{p.name} - {p.vendorName}</option>
+                    {products.map((p, i) => (
+                      <option key={`${p.docId || p.id || 'k'}-${i}`} value={p.id}>{p.name} - {p.vendorName}</option>
                     ))}
                   </select>
                 </div>

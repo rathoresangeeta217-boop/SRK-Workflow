@@ -158,7 +158,7 @@ export function NewProductModal({ isOpen, onClose, onAddProduct, vendors }: NewP
                       placeholder="Select or enter category (e.g. Hardware)"
                     />
                     <datalist id="product-categories">
-                      {Array.from(new Set(vendors.map(v => v.category).filter(Boolean))).map(cat => (
+                      {Array.from(new Set(vendors.map((v, i) => v.category).filter(Boolean))).map(cat => (
                         <option key={cat} value={cat} />
                       ))}
                     </datalist>
@@ -217,8 +217,8 @@ export function NewProductModal({ isOpen, onClose, onAddProduct, vendors }: NewP
                       required
                     >
                       <option value="" disabled>Select a vendor</option>
-                      {vendors.map(v => (
-                        <option key={v.docId || v.id} value={v.id}>{v.name}</option>
+                      {vendors.map((v, i) => (
+                        <option key={`${v.docId || v.id || 'k'}-${i}`} value={v.id}>{v.name}</option>
                       ))}
                     </select>
                   </div>

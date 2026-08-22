@@ -15,6 +15,9 @@ export interface OrderDetails {
   poFileData?: string;
   drawingFileName?: string;
   drawingFileData?: string;
+  advancePayment?: string;
+  transportationCharges?: string;
+  installationCharges?: string;
 }
 
 export interface Order {

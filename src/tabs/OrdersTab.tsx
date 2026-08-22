@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ShoppingCart, TrendingUp, Clock, CheckCircle2, MoreHorizontal, Filter, Plus, FileText, Download, Loader2 } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Clock, CheckCircle2, MoreHorizontal, Filter, Plus, FileText, Download, Loader2, X } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { NewOrderModal } from '../components/NewOrderModal';
@@ -17,6 +17,8 @@ export function OrdersTab() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
+  const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | undefined>();
   const [uploadedFileData, setUploadedFileData] = useState<string | undefined>();
@@ -28,10 +30,17 @@ export function OrdersTab() {
       setOrders(fetchedOrders);
       setIsLoading(false);
     });
-    return () => unsubscribe();
+    
+  
+  return () => unsubscribe();
   }, []);
 
   const handleNewOrderClick = () => {
+    setIsEmployeeModalOpen(true);
+  };
+
+  const handleProceedToUpload = () => {
+    setIsEmployeeModalOpen(false);
     fileInputRef.current?.click();
   };
 
@@ -102,8 +111,109 @@ export function OrdersTab() {
     return true;
   });
 
+  const getOrdersStats = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    
+    let thisMonthCount = 0;
+    let lastMonthCount = 0;
+    const lifetimeCount = orders.length;
+    
+    orders.forEach(order => {
+      let orderDate;
+      // Handle the format: "Oct 15, 2023" or fallback to createdAt
+      if (order.createdAt?.seconds) {
+        orderDate = new Date(order.createdAt.seconds * 1000);
+      } else if (order.date) {
+        orderDate = new Date(order.date);
+      }
+      
+      if (orderDate && !isNaN(orderDate.getTime())) {
+        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
+          thisMonthCount++;
+        } else if (orderDate.getMonth() === lastMonthDate.getMonth() && orderDate.getFullYear() === lastMonthDate.getFullYear()) {
+          lastMonthCount++;
+        }
+      }
+    });
+
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const currentDay = Math.max(1, now.getDate());
+    const projectedCount = Math.round((thisMonthCount / currentDay) * daysInMonth);
+
+    // Calculate trends
+    let thisMonthTrend = 0;
+    if (lastMonthCount > 0) {
+      thisMonthTrend = ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100;
+    }
+    
+    let projectedTrend = 0;
+    if (thisMonthCount > 0) {
+       projectedTrend = ((projectedCount - thisMonthCount) / thisMonthCount) * 100;
+    }
+
+    return {
+      lifetime: lifetimeCount,
+      thisMonth: thisMonthCount,
+      lastMonth: lastMonthCount,
+      projected: projectedCount || thisMonthCount,
+      thisMonthTrend,
+      projectedTrend
+    };
+  };
+
+  const stats = getOrdersStats();
+
   return (
     <div className="space-y-6 pb-8">
+      {isEmployeeModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl shadow-xl w-full max-w-md flex flex-col overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+              <h2 className="text-lg font-bold text-slate-800">Select Salesperson</h2>
+              <button onClick={() => setIsEmployeeModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-200 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <label className="block text-sm font-semibold text-slate-700">Employee Name</label>
+              <select 
+                value={selectedEmployee}
+                onChange={(e) => setSelectedEmployee(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="" disabled>Select an employee</option>
+                <option value="Khushboo Modi">Khushboo Modi</option>
+                <option value="Abhilasha verma">Abhilasha verma</option>
+                <option value="Anshuman Singh">Anshuman Singh</option>
+                <option value="Bhawna Khandelwal">Bhawna Khandelwal</option>
+              </select>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
+              <button
+                onClick={() => setIsEmployeeModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleProceedToUpload}
+                disabled={!selectedEmployee}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 flex items-center"
+              >
+                Next <FileText className="w-4 h-4 ml-2" />
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       <NewOrderModal 
         isOpen={isModalOpen} 
         onClose={() => {
@@ -114,6 +224,7 @@ export function OrdersTab() {
         fileName={uploadedFileName} 
         fileData={uploadedFileData}
         onAddOrder={handleAddOrder}
+        employeeName={selectedEmployee}
       />
 
       <OrderDetailsModal 
@@ -151,27 +262,27 @@ export function OrdersTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Total Orders (Lifetime)" 
-          value="1,248" 
+          value={stats.lifetime.toLocaleString()} 
           icon={<ShoppingCart className="w-5 h-5" />}
           colorClass="bg-blue-50 text-blue-600"
         />
         <StatCard 
           title="Total Orders (This Month)" 
-          value="142" 
-          trend={{ value: 8.2, isPositive: true, label: 'from last month' }}
+          value={stats.thisMonth.toLocaleString()} 
+          trend={stats.lastMonth > 0 ? { value: parseFloat(Math.abs(stats.thisMonthTrend).toFixed(1)), isPositive: stats.thisMonthTrend >= 0, label: 'from last month' } : undefined}
           icon={<ShoppingCart className="w-5 h-5" />}
           colorClass="bg-emerald-50 text-emerald-600"
         />
         <StatCard 
           title="Total Orders (Last Month)" 
-          value="131" 
+          value={stats.lastMonth.toLocaleString()} 
           icon={<ShoppingCart className="w-5 h-5" />}
           colorClass="bg-amber-50 text-amber-600"
         />
         <StatCard 
           title="Projected Orders (This Month)" 
-          value="155" 
-          trend={{ value: 9.1, isPositive: true, label: 'vs current' }}
+          value={stats.projected.toLocaleString()} 
+          trend={{ value: parseFloat(Math.abs(stats.projectedTrend).toFixed(1)), isPositive: stats.projectedTrend >= 0, label: 'vs current' }}
           icon={<ShoppingCart className="w-5 h-5" />}
           colorClass="bg-indigo-50 text-indigo-600"
         />
@@ -259,6 +370,7 @@ export function OrdersTab() {
                   <th className="px-6 py-3 border-b border-slate-200">Order ID</th>
                   <th className="px-6 py-3 border-b border-slate-200">Customer</th>
                   <th className="px-6 py-3 border-b border-slate-200">Date</th>
+                  <th className="px-6 py-3 border-b border-slate-200">Salesperson</th>
                   <th className="px-6 py-3 border-b border-slate-200">Items</th>
                   <th className="px-6 py-3 border-b border-slate-200">Total Amount</th>
                   <th className="px-6 py-3 border-b border-slate-200">Status</th>
@@ -268,7 +380,7 @@ export function OrdersTab() {
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                       <div className="flex flex-col items-center justify-center">
                         <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-4" />
                         <p>Loading orders...</p>
@@ -277,7 +389,7 @@ export function OrdersTab() {
                   </tr>
                 ) : filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                       No orders found matching the selected filters.
                     </td>
                   </tr>
@@ -287,7 +399,7 @@ export function OrdersTab() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     transition={{ delay: 0.1 + i * 0.05 }}
-                    key={order.docId || order.id} 
+                    key={`${order.docId || order.id || 'k'}-${i}`} 
                     className="hover:bg-slate-50 transition-colors cursor-pointer"
                     onClick={() => setSelectedOrder(order)}
                   >

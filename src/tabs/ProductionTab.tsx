@@ -88,7 +88,7 @@ export function ProductionTab() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.1 + i * 0.05 }}
-                    key={job.id} 
+                    key={`${job.id || 'k'}-${i}`} 
                     className="hover:bg-slate-50 transition-colors"
                   >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer">{job.id}</td>

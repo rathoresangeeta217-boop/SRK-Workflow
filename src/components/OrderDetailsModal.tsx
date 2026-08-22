@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, FileText, Download, User, Building, Phone, Mail, MapPin, Hash, Paperclip, Loader2, Trash2 } from 'lucide-react';
 import { Badge } from './Badge';
 import { getOrderFiles } from '../lib/fileStorage';
+import { getPaymentForOrder, PaymentRecord } from '../lib/payments';
+import { Clock, TrendingUp } from 'lucide-react';
 
 interface OrderDetailsModalProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface OrderDetailsModalProps {
 export function OrderDetailsModal({ isOpen, onClose, order, onDelete }: OrderDetailsModalProps) {
   const [files, setFiles] = useState<any>({});
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [paymentRecord, setPaymentRecord] = useState<PaymentRecord | null>(null);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   useEffect(() => {
@@ -22,8 +25,14 @@ export function OrderDetailsModal({ isOpen, onClose, order, onDelete }: OrderDet
     }
     if (isOpen && order) {
       setIsLoadingFiles(true);
-      getOrderFiles(order.id)
-        .then(data => setFiles(data || {}))
+      Promise.all([
+        getOrderFiles(order.id),
+        getPaymentForOrder(order.id)
+      ])
+        .then(([fileData, paymentData]) => {
+          setFiles(fileData || {});
+          setPaymentRecord(paymentData);
+        })
         .catch(console.error)
         .finally(() => setIsLoadingFiles(false));
     }
@@ -94,6 +103,14 @@ export function OrderDetailsModal({ isOpen, onClose, order, onDelete }: OrderDet
               <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
                 <h4 className="text-sm font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">Customer Information</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                  <div className="flex items-start gap-3">
+                    <User className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Salesperson</p>
+                      <p className="text-sm font-semibold text-slate-800">{order.details?.employeeName || 'N/A'}</p>
+                    </div>
+                  </div>
                   <div className="flex items-start gap-3">
                     <User className="w-4 h-4 text-slate-400 mt-0.5" />
                     <div>
@@ -138,6 +155,62 @@ export function OrderDetailsModal({ isOpen, onClose, order, onDelete }: OrderDet
                   </div>
                 </div>
               </div>
+
+              
+              {/* Financial Overview */}
+              {paymentRecord && (
+                <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+                  <h4 className="text-sm font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">Financial Overview</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Grand Total</p>
+                      <p className="text-sm font-semibold text-slate-800">{paymentRecord.grandTotal || order.amount}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Advance</p>
+                      <p className="text-sm font-semibold text-slate-800">{paymentRecord.advancePayment || paymentRecord.advanceRequirement || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Transport</p>
+                      <p className="text-sm font-semibold text-slate-800">{paymentRecord.transportationCharges || paymentRecord.loadingCharges || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Installation</p>
+                      <p className="text-sm font-semibold text-slate-800">{paymentRecord.installationCharges || 'N/A'}</p>
+                    </div>
+                  </div>
+                  
+                  {paymentRecord.rateEditHistory && paymentRecord.rateEditHistory.length > 0 && (
+                    <div className="mt-4 border-t border-slate-200 pt-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Clock className="w-4 h-4 text-indigo-500" />
+                        <h4 className="text-sm font-bold text-slate-800">Rate Modification History</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {[...paymentRecord.rateEditHistory].reverse().map((entry, idx) => (
+                          <div key={`${entry.timestamp}-${idx}`} className="bg-white p-3 border border-slate-200 rounded-lg shadow-sm">
+                            <div className="flex items-start justify-between mb-1">
+                              <span className="text-xs font-medium text-slate-500">
+                                {new Date(entry.timestamp).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-800 font-medium mb-2">
+                              Reason: <span className="font-normal italic text-slate-600">{entry.reason}</span>
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {entry.changes.map((change, cIdx) => (
+                                <span key={`change-${cIdx}`} className="inline-block px-2 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded">
+                                  {change}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Attachments */}
               <div>

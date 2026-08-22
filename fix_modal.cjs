@@ -1,38 +1,44 @@
 const fs = require('fs');
+let content = fs.readFileSync('src/components/PaymentManagementModal.tsx', 'utf8');
 
-let code = fs.readFileSync('src/components/VendorQuoteForm.tsx', 'utf8');
-
-const modalHtml = `
-      {/* Full Screen Image Modal */}
-      {viewingImage && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4" onClick={() => setViewingImage(null)}>
-          <div className="relative w-full max-w-5xl max-h-screen flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
-            <div className="absolute top-4 right-4 flex items-center gap-3 z-50">
-              <a
-                href={viewingImage}
-                download="product-reference.jpg"
-                className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 rounded-lg font-bold hover:bg-slate-100 transition-colors shadow-lg"
-                onClick={e => e.stopPropagation()}
-              >
-                <Download className="w-4 h-4" /> Download
-              </a>
-              <button
-                onClick={() => setViewingImage(null)}
-                className="p-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <img src={viewingImage} alt="Full screen reference" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+const downloadHandler = `
+  const handleDownloadReport = () => {
+    if (!order) return;
+    try {
+      let csvContent = "Order ID,Customer,Total Amount,Phase Title,Phase Amount,Status,Date,UTR Number\\n";
+      const customerName = order.customer.replace(/,/g, '');
+      const totalAmount = order.amount.replace(/,/g, '');
+      
+      if (record.phases && record.phases.length > 0) {
+        record.phases.forEach((phase, index) => {
+          const title = phase.title ? phase.title.replace(/,/g, '') : \`Phase \${index + 1}\`;
+          const phaseAmount = phase.amount ? phase.amount.replace(/,/g, '') : '';
+          const status = phase.status || '';
+          const date = phase.date ? new Date(phase.date).toLocaleString('en-IN').replace(/,/g, '') : '';
+          const utr = phase.utrNumber ? phase.utrNumber.replace(/,/g, '') : '';
+          csvContent += \`\${order.id},\${customerName},\${totalAmount},\${title},\${phaseAmount},\${status},\${date},\${utr}\\n\`;
+        });
+      } else {
+        csvContent += \`\${order.id},\${customerName},\${totalAmount},No phases defined,-,-,-,-\\n\`;
+      }
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', \`Payment_Report_\${order.id}_\${new Date().toISOString().split('T')[0]}.csv\`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error downloading report:", error);
+      alert("Failed to download report");
+    }
+  };
 `;
 
-code = code.replace(/    <\/div>\n  \);\n}$/, modalHtml);
+if (!content.includes('const handleDownloadReport')) {
+  content = content.replace("  const handleScreenshotUpload = (", downloadHandler + "\n  const handleScreenshotUpload = (");
+}
 
-fs.writeFileSync('src/components/VendorQuoteForm.tsx', code);
-console.log("Fixed VendorQuoteForm modal");
+fs.writeFileSync('src/components/PaymentManagementModal.tsx', content);

@@ -8,11 +8,13 @@ interface NewOrderModalProps {
   fileName?: string;
   fileData?: string;
   onAddOrder?: (order: any) => void;
+  employeeName?: string;
 }
 
-export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder }: NewOrderModalProps) {
+export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder, employeeName }: NewOrderModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
+    employeeName: '',
     customerName: '',
     companyName: '',
     mobileNumber: '',
@@ -20,7 +22,10 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder 
     address: '',
     gst: '',
     totalItems: 0,
-    totalAmount: '₹0.00'
+    totalAmount: '₹0.00',
+    advancePayment: '',
+    transportationCharges: '',
+    installationCharges: ''
   });
 
   const [poFile, setPoFile] = useState<File | null>(null);
@@ -47,6 +52,8 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder 
             return;
           }
           setFormData({
+            ...formData,
+            employeeName: employeeName || '',
             customerName: data.customerName || '',
             companyName: data.companyName || '',
             mobileNumber: data.mobileNumber || '',
@@ -54,7 +61,10 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder 
             address: data.address || '',
             gst: data.gst || '',
             totalItems: data.totalItems || 0,
-            totalAmount: data.totalAmount || '₹0.00'
+            totalAmount: data.totalAmount || '₹0.00',
+            advancePayment: data.advancePayment || '',
+            transportationCharges: data.transportationCharges || '',
+            installationCharges: data.installationCharges || ''
           });
         })
         .catch(err => {
@@ -64,6 +74,7 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder 
         .finally(() => setIsProcessing(false));
     } else if (!isOpen) {
       setFormData({
+        employeeName: '',
         customerName: '',
         companyName: '',
         mobileNumber: '',
@@ -180,6 +191,20 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder 
                   )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Employee Name</label>
+                      <input 
+                        type="text" 
+                        name="employeeName"
+                        value={formData.employeeName}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm bg-slate-50"
+                        placeholder="Employee Name"
+                        readOnly
+                      />
+                    </div>
+
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Customer Name</label>
                       <input 

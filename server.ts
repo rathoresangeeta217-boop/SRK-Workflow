@@ -62,9 +62,12 @@ async function startServer() {
           "address": "...",
           "gst": "...",
           "totalItems": 0,
-          "totalAmount": "0.00"
+          "totalAmount": "0.00",
+          "advancePayment": "...",
+          "transportationCharges": "...",
+          "installationCharges": "..."
         }
-        Leave string values as empty strings and number values as 0 if they are not found. For totalAmount include the currency symbol if found.
+        Look for any mention of advance payment requirements, transportation/freight/loading charges, or installation charges, and extract their string values (including currency symbols or percentages). Leave string values as empty strings and number values as 0 if they are not found. For totalAmount include the currency symbol if found.
       `;
 
       const response = await ai.interactions.create({

@@ -274,7 +274,7 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                     </div>
 
                     {items.map((item, index) => (
-                      <div key={item.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl relative space-y-4">
+                      <div key={`${item.id || 'k'}-${index}`} className="p-4 bg-slate-50 border border-slate-200 rounded-xl relative space-y-4">
                         {items.length > 1 && (
                           <button 
                             type="button" 
@@ -293,7 +293,7 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                           >
                             <option value="">-- Manual Entry --</option>
-                            {products.map(p => <option key={p.docId || p.id} value={p.id}>{p.name}</option>)}
+                            {products.map((p, i) => <option key={`${p.docId || p.id || 'k'}-${i}`} value={p.id}>{p.name}</option>)}
                           </select>
                         </div>
                         
@@ -400,8 +400,8 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                     <p className="text-sm text-slate-500">No vendors found in this category.</p>
                   ) : (
                     <div className="space-y-2">
-                      {filteredVendors.map(v => (
-                        <label key={v.docId || v.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                      {filteredVendors.map((v, i) => (
+                        <label key={`${v.docId || v.id || 'k'}-${i}`} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
                           <input 
                             type="checkbox"
                             checked={selectedVendorIds.includes(v.id)}
@@ -431,10 +431,10 @@ export function RequestQuoteModal({ isOpen, onClose, products, vendors }: Reques
                   <p className="text-sm text-slate-500">You can now send the fillable quote link to the vendors via Email or WhatsApp.</p>
                   
                   <div className="space-y-3 mt-6 text-left">
-                    {createdQuotes.map(({ quoteId, vendorId, shortLink }) => {
+                    {createdQuotes.map(({ quoteId, vendorId, shortLink }, idx) => {
                       const v = vendors.find(vend => vend.id === vendorId);
                       return (
-                        <div key={quoteId} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
+                        <div key={`${quoteId}-${idx}`} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
                           <div>
                             <p className="font-semibold text-slate-800">{v?.name}</p>
                             <p className="text-xs text-slate-500">Quote ID: {quoteId}</p>

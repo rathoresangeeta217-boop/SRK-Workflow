@@ -1,0 +1,82 @@
+--- src/tabs/PaymentsTab.tsx
++++ src/tabs/PaymentsTab.tsx
+@@ -5,6 +5,7 @@
+ import { Badge } from '../components/Badge';
+ import { subscribeToOrders, Order } from '../lib/orders';
+ import { PaymentManagementModal } from '../components/PaymentManagementModal';
++import { getAllPayments } from '../lib/payments';
+ 
+ export function PaymentsTab() {
+   const [orders, setOrders] = useState<Order[]>([]);
+@@ -12,6 +13,7 @@
+   const [isModalOpen, setIsModalOpen] = useState(false);
++  const [isDownloading, setIsDownloading] = useState(false);
+ 
+   useEffect(() => {
+     const unsubscribe = subscribeToOrders((fetchedOrders) => {
+@@ -25,6 +27,47 @@
+     return sum + parseFloat(amountStr);
+   }, 0);
+ 
++  const handleDownloadDetailedReport = async () => {
++    try {
++      setIsDownloading(true);
++      const allPayments = await getAllPayments();
++      
++      let csvContent = "Order ID,Customer,Total Amount,Phase Title,Phase Amount,Status,Date,UTR Number\n";
++      
++      orders.forEach(order => {
++        const paymentRecord = allPayments.find(p => p.orderId === order.id);
++        const customerName = order.customer.replace(/,/g, ''); // escape commas
++        const totalAmount = order.amount.replace(/,/g, '');
++        
++        if (paymentRecord && paymentRecord.phases && paymentRecord.phases.length > 0) {
++          paymentRecord.phases.forEach(phase => {
++            const title = phase.title ? phase.title.replace(/,/g, '') : '';
++            const phaseAmount = phase.amount ? phase.amount.replace(/,/g, '') : '';
++            const status = phase.status || '';
++            const date = phase.date || '';
++            const utr = phase.utrNumber ? phase.utrNumber.replace(/,/g, '') : '';
++            csvContent += `${order.id},${customerName},${totalAmount},${title},${phaseAmount},${status},${date},${utr}\n`;
++          });
++        } else {
++          // No phases recorded yet, but order exists
++          csvContent += `${order.id},${customerName},${totalAmount},No phases defined,-,-,-,-\n`;
++        }
++      });
++      
++      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
++      const url = URL.createObjectURL(blob);
++      const link = document.createElement('a');
++      link.href = url;
++      link.setAttribute('download', `Detailed_Payment_Report_${new Date().toISOString().split('T')[0]}.csv`);
++      document.body.appendChild(link);
++      link.click();
++      document.body.removeChild(link);
++    } catch (error) {
++      console.error("Error downloading report:", error);
++      alert("Failed to download report");
++    } finally {
++      setIsDownloading(false);
++    }
++  };
++
+   return (
+     <div className="space-y-6 pb-8">
+       {/* Action Bar */}
+@@ -33,6 +76,14 @@
+           <h2 className="text-xl font-bold text-slate-800 tracking-tight">Financial Overview</h2>
+           <p className="text-sm text-slate-500 font-medium mt-1">Manage customer payments, advance tracking, and structured payment phases.</p>
+         </div>
++        
++        <button 
++          onClick={handleDownloadDetailedReport}
++          disabled={isDownloading}
++          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
++        >
++          <Download className="w-4 h-4" />
++          {isDownloading ? 'Downloading...' : 'Detailed Report'}
++        </button>
+       </div>
+ 
+       {/* Stats Grid */}
