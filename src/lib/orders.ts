@@ -2,7 +2,17 @@ import { collection, addDoc, getDocs, orderBy, query, serverTimestamp, doc, onSn
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from './firebase';
 
+export interface OrderProduct {
+  id: string;
+  name: string;
+  quantity: number;
+  isDispatched: boolean;
+  size?: string;
+  image?: string;
+}
+
 export interface OrderDetails {
+  products?: OrderProduct[];
   customerName?: string;
   companyName?: string;
   mobileNumber?: string;

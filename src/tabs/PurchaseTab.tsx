@@ -1155,7 +1155,7 @@ export function PurchaseTab() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.1 + (i + itemIdx * 0.1) * 0.05 }}
-                        key={`${quote.docId || quote.id || 'k'}-${itemIdx}`} 
+                        key={`quote-${i}-item-${itemIdx}`} 
                         className="hover:bg-slate-50 transition-colors"
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-bold">

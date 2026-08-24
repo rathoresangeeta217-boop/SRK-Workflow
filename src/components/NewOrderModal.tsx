@@ -30,6 +30,7 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder,
 
   const [poFile, setPoFile] = useState<File | null>(null);
   const [drawingFile, setDrawingFile] = useState<File | null>(null);
+  const [parsedProducts, setParsedProducts] = useState<any[]>([]);
   const poInputRef = useRef<HTMLInputElement>(null);
   const drawingInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,6 +68,7 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder,
           }
           setFormData({
             ...formData,
+          products: parsedProducts,
             employeeName: employeeName || '',
             customerName: data.customerName || '',
             companyName: data.companyName || '',
@@ -80,6 +82,9 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder,
             transportationCharges: data.transportationCharges || '',
             installationCharges: data.installationCharges || ''
           });
+          if (data.products && Array.isArray(data.products)) {
+            setParsedProducts(data.products.map((p, i) => ({ id: Math.random().toString(36).substr(2, 9), name: p.name, quantity: p.quantity, size: p.size, isDispatched: false })));
+          }
         })
         .catch(err => {
           console.error("Error parsing order:", err);
@@ -131,6 +136,7 @@ export function NewOrderModal({ isOpen, onClose, fileName, fileData, onAddOrder,
       if (onAddOrder) {
         await onAddOrder({
           ...formData,
+          products: parsedProducts,
           quotationFileName: fileName,
           poFileName: poFile?.name,
           drawingFileName: drawingFile?.name,

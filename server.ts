@@ -62,6 +62,9 @@ async function startServer() {
           "address": "...",
           "gst": "...",
           "totalItems": 0,
+          "products": [
+            { "name": "...", "quantity": 0, "size": "... (extract exact description/specifications here)" }
+          ],
           "totalAmount": "0.00",
           "advancePayment": "...",
           "transportationCharges": "...",

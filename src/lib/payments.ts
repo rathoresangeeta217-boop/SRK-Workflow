@@ -9,6 +9,8 @@ export interface PaymentPhase {
   utrNumber?: string;     // Transaction reference
   screenshotUrl?: string; // or base64 data
   date?: string;          // Expected or Received date
+  sourceType?: 'Bank' | 'Cash' | 'Cheque';
+  bankName?: 'SBI' | 'Union' | 'PR';
 }
 
 export interface RateEditHistoryEntry {
